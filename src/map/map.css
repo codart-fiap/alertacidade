@@ -1,0 +1,19 @@
+/* Animação do marcador destacado (`highlighted`). Precisa ser uma classe CSS
+   de verdade (não inline) porque o HTML do marcador do Leaflet é montado
+   como string crua. Importado direto por MapView.jsx. */
+
+@keyframes map-marker-pulse-kf {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 179, 0, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(255, 179, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 179, 0, 0);
+  }
+}
+
+.map-marker-pulse {
+  animation: map-marker-pulse-kf 2s ease-out infinite;
+}
