@@ -18,7 +18,7 @@ export default function AreasListPage({ expanded = false }) {
     <main className={`citizen-page ${expanded ? 'citizen-expanded' : ''}`}>
       <Link className="summary-teaser" to="/resumos">
         <span className="summary-icon">{activeAlerts.length ? '⚠' : '✓'}</span>
-        <span className="summary-copy"><strong>{activeAlerts.length ? `${activeAlerts.length} alerta${activeAlerts.length > 1 ? 's' : ''} ativo${activeAlerts.length > 1 ? 's' : ''}` : 'Tudo tranquilo por aqui'}</strong><small>{urgentAreas.length ? `${urgentAreas[0].name} · Veja o que fazer` : 'Resumo e orientações do momento'}</small></span>
+        <span className="summary-copy"><strong>{activeAlerts.length ? 'Recomendações para você' : 'Orientações para sua região'}</strong><small>{activeAlerts.length ? `${activeAlerts.length} ocorrência${activeAlerts.length > 1 ? 's' : ''} ativa${activeAlerts.length > 1 ? 's' : ''}. ${messages[0]?.text || 'Evite áreas de risco e acompanhe as orientações da Defesa Civil.'}` : urgentAreas.length ? `Atenção em ${urgentAreas[0].name}. Evite a área e acompanhe as orientações da Defesa Civil.` : 'Nenhum alerta ativo. Acompanhe o mapa e marque sua localização para se orientar.'}</small></span>
         <span className="summary-arrow">›</span>
       </Link>
       {expanded && <section className="citizen-notices"><h1>Resumos e alertas</h1><p className="muted">O que está acontecendo e como agir.</p>
