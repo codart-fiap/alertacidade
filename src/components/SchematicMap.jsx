@@ -63,7 +63,6 @@ export default function SchematicMap({ areas = [], shelters = [], focusAreaId, o
     ...areas.map((item) => ({ ...normalized(item), id: `area-${item.id}`, targetId: item.id, name: item.name, kind: 'area' })),
     ...(userLocation ? [{ ...userLocation, id: 'user-location', name: 'Você', kind: 'user' }] : []),
   ], viewWidth, zoom, pan)
-  const hiddenLabels = labelItems.filter((item) => item.hidden && item.kind !== 'user')
 
   useEffect(() => {
     if (!svgRef.current) return undefined
@@ -148,7 +147,6 @@ export default function SchematicMap({ areas = [], shelters = [], focusAreaId, o
       <div className="map-zoom"><button aria-label="Aproximar" onClick={() => zoomBy(.25)}>+</button><button aria-label="Afastar" onClick={() => zoomBy(-.25)}>−</button><button aria-label="Recentrar mapa" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}>⌖</button></div>
       {isManagerPicking && <div className="map-pick-hint">{pickingLabel || 'Toque no mapa para marcar o ponto'}</div>}
     </div>
-    {hiddenLabels.length > 0 && <div className="map-overflow-labels"><span>Locais próximos:</span>{hiddenLabels.map((item) => item.targetId ? <button key={item.id} onClick={() => onSelectArea?.(item.targetId)}>{item.name}</button> : <small key={item.id}>{item.name}</small>)}</div>}
     {!isManagerPicking && <button className="btn secondary" style={{ marginTop: 10, width: '100%' }} onClick={() => setPicking((current) => !current)}>{picking ? 'Toque no mapa para marcar' : userLocation ? '📍 Atualizar minha localização' : '📍 Simular minha localização'}</button>}
     <p className="map-caption">Arraste para mover · use os botões ou a roda do mouse para aproximar</p>
   </div>
