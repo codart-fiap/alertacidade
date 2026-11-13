@@ -81,6 +81,7 @@ export default function SchematicMap({ areas = [], shelters = [], focusAreaId, o
   }
   function handlePointerDown(e) {
     if (picking || isManagerPicking) return
+    e.preventDefault()
     dragRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
@@ -121,7 +122,7 @@ export default function SchematicMap({ areas = [], shelters = [], focusAreaId, o
   }
   return <div className="map-shell">
     <div className="map-stage">
-      <svg ref={svgRef} viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet" onClick={handleMapClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onWheel={(e) => { e.preventDefault(); zoomBy(e.deltaY < 0 ? 0.15 : -0.15) }} style={{ cursor: isManagerPicking || picking ? 'crosshair' : 'grab', touchAction: 'none' }}>
+      <svg ref={svgRef} viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet" onClick={handleMapClick} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onWheel={(e) => { e.preventDefault(); e.stopPropagation(); zoomBy(e.deltaY < 0 ? 0.15 : -0.15) }} style={{ cursor: isManagerPicking || picking ? 'crosshair' : dragRef.current ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', overscrollBehavior: 'contain' }}>
         <g ref={mapGroupRef} transform={`translate(${pan.x} ${pan.y}) translate(500 300) scale(${zoom}) translate(-500 -300)`}>
           {image ? <image href={image} x="0" y="0" width="1000" height="600" preserveAspectRatio="none" /> : <><rect width="1000" height="600" fill="#dce8dc" /><path d="M0 140 L1000 510 M-40 530 L760 0 M330 0 L690 600 M0 340 L1000 250" stroke="#f8f6ef" strokeWidth="48" /><path d="M0 140 L1000 510 M-40 530 L760 0 M330 0 L690 600 M0 340 L1000 250" stroke="#c5d1c8" strokeWidth="3" /><path d="M90 0 Q150 160 80 600 M820 0 Q750 220 920 600" stroke="#9ec9d0" strokeWidth="35" fill="none" /><text x="500" y="320" textAnchor="middle" fill="#68786c" fontSize="24">Adicione uma imagem de mapa no painel do gestor</text></>}
           {shelters.map((item, i) => { const p = normalized(item); const u = markerScale; return <g key={`${item.name}-${i}`}><path d={`M${p.x} ${p.y - 20*u} L${p.x + 15*u} ${p.y - 5*u} L${p.x + 11*u} ${p.y + 14*u} L${p.x - 11*u} ${p.y + 14*u} L${p.x - 15*u} ${p.y - 5*u} Z`} fill="#1687d9" stroke="white" strokeWidth={3*u}/><title>{item.name}</title></g> })}
