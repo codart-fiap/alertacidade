@@ -72,6 +72,18 @@ export default function SchematicMap({ areas = [], shelters = [], focusAreaId, o
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return undefined
+    const handleWheel = (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      zoomBy(event.deltaY < 0 ? 0.15 : -0.15)
+    }
+    svg.addEventListener('wheel', handleWheel, { passive: false })
+    return () => svg.removeEventListener('wheel', handleWheel)
+  }, [])
+
   function pointFromEvent(e) {
     const svg = svgRef.current
     if (!svg) return null
