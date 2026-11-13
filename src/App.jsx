@@ -1,0 +1,45 @@
+import { Routes, Route, Navigate } from 'react-router-dom'
+import Layout from './components/Layout.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import AreasListPage from './pages/AreasListPage.jsx'
+import AreaDetailPage from './pages/AreaDetailPage.jsx'
+import MapPage from './pages/MapPage.jsx'
+import AdminAlertsPage from './pages/AdminAlertsPage.jsx'
+
+// Todas as rotas da aplicacao ficam centralizadas aqui.
+// Se uma tela nova for adicionada, ela entra como mais uma <Route>
+// dentro do Layout — nao criar um segundo arquivo de rotas.
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route element={<Layout />}>
+        {/* A área pública do cidadão não exige conta. */}
+        <Route path="/" element={<AreasListPage />} />
+        <Route path="/resumos" element={<AreasListPage expanded />} />
+        <Route
+          path="/areas/:id"
+          element={<AreaDetailPage />}
+        />
+        <Route
+          path="/mapa"
+          element={<MapPage />}
+        />
+
+        {/* rota do gestor: exige perfil "gestor" especificamente */}
+        <Route
+          path="/admin/alertas"
+          element={
+            <ProtectedRoute requireRole="gestor">
+              <AdminAlertsPage />
+            </ProtectedRoute>
+          }
+        />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  )
+}
