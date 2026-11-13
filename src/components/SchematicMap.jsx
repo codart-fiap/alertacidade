@@ -45,7 +45,7 @@ function placeLabels(items, viewWidth, zoom, pan) {
 
 // Mapa ilustrado pelo gestor: os pontos usam posições relativas à imagem,
 // então continuam no mesmo lugar ao redimensionar, arrastar ou aproximar.
-export default function SchematicMap({ areas = [], shelters = [], focusAreaId, onSelectArea, points = [], image, onImageChange, onPickLocation, pickingLabel }) {
+export default function SchematicMap({ areas = [], shelters = [], focusAreaId, onSelectArea, points = [], image, onImageChange, onPickLocation, pickingLabel, onLocationChange }) {
   const svgRef = useRef(null)
   const mapGroupRef = useRef(null)
   const dragRef = useRef(null)
@@ -107,7 +107,7 @@ export default function SchematicMap({ areas = [], shelters = [], focusAreaId, o
     const p = pointFromEvent(e)
     if (!p) return
     if (isManagerPicking) { onPickLocation({ x: p.x / 1000, y: p.y / 600 }); return }
-    if (picking) { setUserLocation({ x: p.x, y: p.y }); setPicking(false) }
+    if (picking) { setUserLocation({ x: p.x, y: p.y }); onLocationChange?.({ x: p.x / 1000, y: p.y / 600 }); setPicking(false) }
   }
   function handleUpload(e) {
     const file = e.target.files?.[0]
