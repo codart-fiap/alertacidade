@@ -130,6 +130,14 @@ button.recommendation-link { padding: 0; border: 0; background: none; text-decor
 .map-upload, .map-zoom, .map-pick-hint { position: absolute; z-index: 2; }
 .map-upload { top: 10px; left: 10px; padding: 9px 12px; border-radius: 9px; background: white; color: #26352c; box-shadow: 0 2px 10px #0003; font-size: 12px; font-weight: 700; cursor: pointer; }
 .map-upload input { display: none; }
+.map-legend { position: absolute; z-index: 1200; bottom: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px 10px; max-width: calc(100% - 68px); padding: 7px 9px; border: 1px solid #20352a33; border-radius: 10px; background: #fffffff0; color: #26352c; box-shadow: 0 2px 10px #0003; pointer-events: none; }
+.map-legend > span { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.map-legend-icon { display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: #2779bd; font-style: normal; }
+.map-legend-icon.sensor { background: linear-gradient(90deg, #2ecf85 0 33%, #e6b23d 33% 66%, #ff5a5a 66%); }
+.map-legend-icon.shelter { background: #16a34a; }
+.map-legend-icon.attention { background: #ea580c; }
+.map-legend-icon.user { width: 23px; height: 23px; background: #2563eb; }
+.map-legend-icon svg { display: block; }
 .map-zoom { right: 10px; bottom: 10px; display: grid; gap: 5px; }
 .map-zoom button { width: 38px; height: 38px; border: 0; border-radius: 9px; background: white; color: #26352c; box-shadow: 0 2px 10px #0003; font-size: 22px; cursor: pointer; }
 .map-pick-hint { top: 10px; left: 50%; transform: translateX(-50%); padding: 9px 12px; border-radius: 9px; color: #201b0c; background: #fff0a8; font-size: 12px; font-weight: 700; white-space: nowrap; }
