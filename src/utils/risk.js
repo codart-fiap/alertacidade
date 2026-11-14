@@ -26,6 +26,30 @@ export function monitoringRadiusPercent(area) {
   return Math.max(4, Math.min(22, 3 + boundedRatio * 8))
 }
 
+export function isLocationInsideMonitoringArea(location, area, dimensions = { width: 1000, height: 600 }) {
+  if (!location || !area || area.active === false) return false
+  const position = {
+    x: area.x <= 1 ? area.x : area.x / 400,
+    y: area.y <= 1 ? area.y : area.y / 240,
+  }
+  const dx = (location.x - position.x) * dimensions.width
+  const dy = (location.y - position.y) * dimensions.height
+  const radius = Math.min(dimensions.width, dimensions.height) * (monitoringRadiusPercent(area) / 100)
+  return (dx * dx) + (dy * dy) <= radius * radius
+}
+
+export function isLocationNearPoint(location, point, dimensions = { width: 1000, height: 600 }, distancePercent = 12) {
+  if (!location || !point) return false
+  const position = {
+    x: point.x <= 1 ? point.x : point.x / 400,
+    y: point.y <= 1 ? point.y : point.y / 240,
+  }
+  const dx = (location.x - position.x) * dimensions.width
+  const dy = (location.y - position.y) * dimensions.height
+  const radius = Math.min(dimensions.width, dimensions.height) * (distancePercent / 100)
+  return (dx * dx) + (dy * dy) <= radius * radius
+}
+
 function distance(x1, y1, x2, y2) {
   return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 }

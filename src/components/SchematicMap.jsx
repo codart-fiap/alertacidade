@@ -36,6 +36,7 @@ const SENSOR_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none"
 const ATTENTION_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 22 20H2L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg>'
 const SHELTER_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 9-8 9 8v10H3V11Z"/><path d="M9 21v-7h6v7"/></svg>'
 const USER_LOCATION_ICON = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-5.7 7-12a7 7 0 1 0-14 0c0 6.3 7 12 7 12Z"/><circle cx="12" cy="9" r="2"/><path d="M8.5 15c.8-1.6 2-2.4 3.5-2.4s2.7.8 3.5 2.4"/></svg>'
+const PENDING_REPORT_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
 
 // Grade "esquemática" antiga (ver mockData.js) usada quando x/y não é uma
 // fração 0-1. Mantém compatibilidade com os dados de exemplo sem precisar
@@ -72,6 +73,7 @@ export default function SchematicMap({
   onSelectSensor,
   onSelectShelter,
   points = [],
+  pendingPoints = [],
   image,
   onImageChange,
   onPickLocation,
@@ -133,6 +135,13 @@ export default function SchematicMap({
       label: point.name,
       iconHtml: ATTENTION_ICON,
       highlighted: isFocused(point.id),
+    })),
+    ...pendingPoints.map((point) => ({
+      id: `pending-${point.id}`,
+      position: toPercent(point),
+      color: '#d99b17',
+      label: point.name,
+      iconHtml: PENDING_REPORT_ICON,
     })),
     ...(userLocation
       ? [{ id: 'user-location', position: userLocation, color: USER_COLOR, label: 'Você', iconHtml: USER_LOCATION_ICON }]
@@ -206,6 +215,7 @@ export default function SchematicMap({
           <span><i className="map-legend-icon sensor" dangerouslySetInnerHTML={{ __html: SENSOR_ICON }} />Sensor · risco</span>
           <span><i className="map-legend-icon shelter" dangerouslySetInnerHTML={{ __html: SHELTER_ICON }} />Abrigo</span>
           <span><i className="map-legend-icon attention" dangerouslySetInnerHTML={{ __html: ATTENTION_ICON }} />Ponto de atenção</span>
+          {pendingPoints.length > 0 && <span><i className="map-legend-icon pending" dangerouslySetInnerHTML={{ __html: PENDING_REPORT_ICON }} />Aguardando confirmação</span>}
           <span><i className="map-legend-area" />Área monitorada</span>
           {!onImageChange && <span><i className="map-legend-icon user" dangerouslySetInnerHTML={{ __html: USER_LOCATION_ICON }} />Sua localização</span>}
         </div>
