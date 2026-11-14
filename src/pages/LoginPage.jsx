@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { validateEmail, validatePassword } from '../utils/validation.js'
 
 export default function LoginPage() {
   const { user, login, loading, error } = useAuth()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
@@ -26,7 +27,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="page" style={{ paddingTop: 60 }}>
+    <div className="page" style={{ paddingTop: 24 }}>
+      <nav className="login-navigation" aria-label="Navegação">
+        <Link to="/">Início</Link>
+        <button className="back-button" onClick={() => window.history.state?.idx > 0 ? navigate(-1) : navigate('/')}>← Voltar</button>
+      </nav>
         <h1 style={{ fontSize: 22, marginBottom: 4 }}>Acesso do gestor</h1>
       <p style={{ color: 'var(--muted)', fontSize: 13.5, marginBottom: 28 }}>
         Área restrita para monitorar sensores e publicar orientações.
