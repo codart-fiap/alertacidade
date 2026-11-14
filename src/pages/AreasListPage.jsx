@@ -2,7 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useSensors } from '../context/SensorContext.jsx'
 import SchematicMap from '../components/SchematicMap.jsx'
-import { statusFromArea } from '../utils/risk.js'
+import { getImageDimensions } from '../map/image.js'
+import { monitoringRadiusPercent, statusFromArea } from '../utils/risk.js'
+
+const DEFAULT_MAP_DIMENSIONS = { width: 1000, height: 600 }
+
+function areaPosition(area) {
+  return {
+    x: area.x <= 1 ? area.x : area.x / 400,
+    y: area.y <= 1 ? area.y : area.y / 240,
+  }
+}
+
+function defaultSafetyInstruction(area) {
+  const type = area.type?.toLowerCase() || ''
+  if (type.includes('enchente')) return 'Afaste-se de rios e ruas alagadas. Não atravesse áreas inundadas e procure um local seguro ou abrigo.'
+  if (type.includes('deslizamento')) return 'Afaste-se de encostas, taludes e áreas com rachaduras. Procure um local seguro e siga as orientações da Defesa Civil.'
+  if (type.includes('incêndio') || type.includes('incendio')) return 'Afaste-se do fogo e da fumaça. Vá para uma área segura e acione os serviços de emergência se houver perigo imediato.'
+  if (type.includes('calor')) return 'Vá para um local fresco, hidrate-se e evite esforço físico sob o sol.'
+  return 'Afaste-se da área de risco, procure um local seguro e siga as orientações da Defesa Civil.'
+}
 
 export default function AreasListPage({ expanded = false }) {
   const { areas, alerts, shelters, publicPoints, mapImage } = useSensors()
@@ -11,6 +30,9 @@ export default function AreasListPage({ expanded = false }) {
   const [location, setLocation] = useState(null)
   const [cardIndex, setCardIndex] = useState(0)
   const [touchStart, setTouchStart] = useState(null)
+  const [mapDimensions, setMapDimensions] = useState(DEFAULT_MAP_DIMENSIONS)
+  const [riskNotification, setRiskNotification] = useState(null)
+  const notifiedSensorsRef = useRef(new Set())
   const mapSectionRef = useRef(null)
   useEffect(() => {
     const areaId = searchParams.get('area')
@@ -19,8 +41,47 @@ export default function AreasListPage({ expanded = false }) {
       requestAnimationFrame(() => mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     }
   }, [expanded, searchParams])
+  useEffect(() => {
+    let cancelled = false
+    if (!mapImage) {
+      setMapDimensions(DEFAULT_MAP_DIMENSIONS)
+      return undefined
+    }
+    getImageDimensions(mapImage)
+      .then((dimensions) => { if (!cancelled) setMapDimensions(dimensions) })
+      .catch(() => { if (!cancelled) setMapDimensions(DEFAULT_MAP_DIMENSIONS) })
+    return () => { cancelled = true }
+  }, [mapImage])
   const allAreas = [...publicPoints, ...areas]
   const activeAlerts = alerts.filter((alert) => !alert.resolved)
+  useEffect(() => {
+    if (expanded || !location) return
+    const minDimension = Math.min(mapDimensions.width, mapDimensions.height)
+    const matches = areas.filter((area) => area.active !== false && statusFromArea(area) !== 'normal').filter((area) => {
+      const position = areaPosition(area)
+      const dx = (location.x - position.x) * mapDimensions.width
+      const dy = (location.y - position.y) * mapDimensions.height
+      const radius = minDimension * (monitoringRadiusPercent(area) / 100)
+      return (dx * dx) + (dy * dy) <= radius * radius
+    })
+    const insideIds = new Set(matches.map((area) => String(area.id)))
+    notifiedSensorsRef.current.forEach((id) => {
+      if (!insideIds.has(id)) notifiedSensorsRef.current.delete(id)
+    })
+    const rank = { critico: 2, atencao: 1, normal: 0 }
+    matches.sort((a, b) => rank[statusFromArea(b)] - rank[statusFromArea(a)])
+    const sensor = matches.find((area) => !notifiedSensorsRef.current.has(String(area.id)))
+    if (!sensor) return
+    notifiedSensorsRef.current.add(String(sensor.id))
+    const alert = activeAlerts.find((item) => String(item.areaId) === String(sensor.id))
+    setRiskNotification({
+      id: sensor.id,
+      name: sensor.name,
+      type: sensor.type,
+      status: statusFromArea(sensor),
+      instruction: alert?.instruction || sensor.instruction || defaultSafetyInstruction(sensor),
+    })
+  }, [expanded, location, areas, activeAlerts, mapDimensions])
   const urgentAreas = allAreas.filter((area) => publicPoints.some((point) => point.id === area.id) || statusFromArea(area) === 'critico')
   const messages = activeAlerts.map((alert) => {
     const area = allAreas.find((item) => String(item.id) === String(alert.areaId))
@@ -41,6 +102,13 @@ export default function AreasListPage({ expanded = false }) {
 
   return (
     <main className={`citizen-page ${expanded ? 'citizen-expanded' : ''}`}>
+      {riskNotification && <aside className={`risk-location-notification ${riskNotification.status}`} role="alert" aria-live="assertive">
+        <span className="risk-notification-icon" aria-hidden="true">⚠</span>
+        <div className="risk-notification-content"><strong>Você está dentro de uma área com risco detectado</strong><span>{riskNotification.name} · {riskNotification.type}</span><p>{riskNotification.instruction}</p>
+          <button className="risk-notification-link" onClick={() => { setFocusAreaId(riskNotification.id); setRiskNotification(null); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>Ver sensor no mapa</button>
+        </div>
+        <button className="risk-notification-close" aria-label="Fechar notificação" onClick={() => setRiskNotification(null)}>×</button>
+      </aside>}
       {!expanded && <section className="recommendation-carousel" aria-label="Recomendações de segurança"
         onTouchStart={(event) => setTouchStart(event.touches[0].clientX)}
         onTouchEnd={(event) => { if (touchStart === null) return; const delta = event.changedTouches[0].clientX - touchStart; if (Math.abs(delta) > 35) setCardIndex((index) => Math.max(0, Math.min(cards.length - 1, index + (delta < 0 ? 1 : -1)))); setTouchStart(null) }}>

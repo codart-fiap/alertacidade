@@ -26,7 +26,7 @@
 import { useEffect, useState } from 'react'
 import MapView from '../map/MapView.jsx'
 import { loadAndCompressImage, getImageDimensions } from '../map/image.js'
-import { statusFromArea } from '../utils/risk.js'
+import { monitoringRadiusPercent, statusFromArea } from '../utils/risk.js'
 
 const STATUS_COLOR = { normal: '#2ecf85', atencao: '#e6b23d', critico: '#ff5a5a' }
 const SHELTER_COLOR = '#16a34a'
@@ -138,16 +138,12 @@ export default function SchematicMap({
       ? [{ id: 'user-location', position: userLocation, color: USER_COLOR, label: 'Você', iconHtml: USER_LOCATION_ICON }]
       : []),
   ]
-  const zones = areas.filter((area) => area.active !== false).map((area) => {
-    const ratio = Number(area.value) / Number(area.threshold)
-    const boundedRatio = Number.isFinite(ratio) ? Math.max(0, Math.min(ratio, 2.4)) : 0
-    return {
+  const zones = areas.filter((area) => area.active !== false).map((area) => ({
       id: `risk-zone-${area.id}`,
       position: toPercent(area),
-      radius: Math.max(4, Math.min(22, 3 + boundedRatio * 8)),
+      radius: monitoringRadiusPercent(area),
       color: STATUS_COLOR[statusFromArea(area)],
-    }
-  })
+    }))
   const focusedItem = [...areas, ...points].find((item) => isFocused(item.id))
   const focusPosition = focusedItem ? toPercent(focusedItem) : null
 

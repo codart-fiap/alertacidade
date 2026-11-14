@@ -18,6 +18,14 @@ export function statusLabel(status) {
   return 'Normal'
 }
 
+// Estimativa visual da zona monitorada, compartilhada pelo mapa e pelo
+// aviso de proximidade para manter o mesmo raio nos dois fluxos.
+export function monitoringRadiusPercent(area) {
+  const ratio = Number(area.value) / Number(area.threshold)
+  const boundedRatio = Number.isFinite(ratio) ? Math.max(0, Math.min(ratio, 2.4)) : 0
+  return Math.max(4, Math.min(22, 3 + boundedRatio * 8))
+}
+
 function distance(x1, y1, x2, y2) {
   return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 }
