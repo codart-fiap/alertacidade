@@ -65,6 +65,7 @@ export default function SchematicMap({
   shelters = [],
   focusAreaId,
   onSelectArea,
+  onSelectShelter,
   points = [],
   image,
   onImageChange,
@@ -106,7 +107,7 @@ export default function SchematicMap({
 
   const markers = [
     ...shelters.map((shelter, i) => ({
-      id: `shelter-${i}`,
+      id: `shelter-${shelter.id ?? i}`,
       position: toPercent(shelter),
       color: SHELTER_COLOR,
       label: shelter.name,
@@ -137,7 +138,7 @@ export default function SchematicMap({
   function handleMarkerClick(markerId) {
     if (markerId.startsWith('area-')) onSelectArea?.(markerId.slice('area-'.length))
     else if (markerId.startsWith('point-')) onSelectArea?.(markerId.slice('point-'.length))
-    // marcadores de abrigo e "você" não são clicáveis (igual à versão anterior)
+    else if (markerId.startsWith('shelter-')) onSelectShelter?.(markerId.slice('shelter-'.length))
   }
 
   function handleMapClick(point) {

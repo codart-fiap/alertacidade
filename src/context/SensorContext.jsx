@@ -12,7 +12,7 @@ const SensorContext = createContext(null)
 // propria (o que criaria estados duplicados e desincronizados).
 export function SensorProvider({ children }) {
   const simulation = useSensorSimulation(mockAreas)
-  const [shelters, setShelters] = useState(mockShelters)
+  const [shelters, setShelters] = useState(() => mockShelters.map((shelter, index) => ({ ...shelter, id: shelter.id ?? `shelter-${index + 1}` })))
   const [publicPoints, setPublicPoints] = useState([])
   const [mapImage, setMapImage] = useState(() => localStorage.getItem('alertacidade-map-image') || '')
   function updateMapImage(image) {
@@ -20,14 +20,24 @@ export function SensorProvider({ children }) {
     if (image) localStorage.setItem('alertacidade-map-image', image)
     else localStorage.removeItem('alertacidade-map-image')
   }
-  function addShelter(shelter) { setShelters((current) => [...current, { ...shelter, areaId: 0, x: shelter.x ?? 0.5, y: shelter.y ?? 0.5 }]) }
+  function addShelter(shelter) {
+    const id = `shelter-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    setShelters((current) => [...current, { ...shelter, id, areaId: 0, x: shelter.x ?? 0.5, y: shelter.y ?? 0.5 }])
+  }
+  function updateShelter(id, updates) { setShelters((current) => current.map((shelter) => shelter.id === id ? { ...shelter, ...updates } : shelter)) }
+  function removeShelter(id) { setShelters((current) => current.filter((shelter) => shelter.id !== id)) }
   function addPublicPoint(point) {
     const id = `p${Date.now()}`
     const area = { id, name: point.name, type: point.type, sensor: '', value: 0, threshold: 1, unit: '', x: point.x ?? 0.5, y: point.y ?? 0.5 }
     setPublicPoints((current) => [{ ...area, instruction: point.instruction }, ...current])
     simulation.addManualAlert(id)
   }
-  return <SensorContext.Provider value={{ ...simulation, shelters, addShelter, publicPoints, addPublicPoint, mapImage, updateMapImage }}>
+  function updatePublicPoint(id, updates) { setPublicPoints((current) => current.map((point) => point.id === id ? { ...point, ...updates } : point)) }
+  function removePublicPoint(id) {
+    setPublicPoints((current) => current.filter((point) => point.id !== id))
+    simulation.alerts.filter((alert) => String(alert.areaId) === String(id) && !alert.resolved).forEach((alert) => simulation.resolveAlertLocally(alert.id))
+  }
+  return <SensorContext.Provider value={{ ...simulation, shelters, addShelter, updateShelter, removeShelter, publicPoints, addPublicPoint, updatePublicPoint, removePublicPoint, mapImage, updateMapImage }}>
     {children}
   </SensorContext.Provider>
 }
