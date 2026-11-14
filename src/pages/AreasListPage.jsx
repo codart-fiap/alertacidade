@@ -24,7 +24,7 @@ export default function AreasListPage({ expanded = false }) {
   const urgentAreas = allAreas.filter((area) => publicPoints.some((point) => point.id === area.id) || statusFromArea(area) === 'critico')
   const messages = activeAlerts.map((alert) => {
     const area = allAreas.find((item) => String(item.id) === String(alert.areaId))
-    return { id: alert.id, area, text: area?.instruction || `Evite a região de ${area?.name}. Procure um local seguro e siga as orientações da Defesa Civil.` }
+    return { id: alert.id, area, text: alert.instruction || area?.instruction || `Evite a região de ${area?.name}. Procure um local seguro e siga as orientações da Defesa Civil.` }
   })
   const cards = (messages.length ? messages : urgentAreas.map((area) => ({
     id: area.id, area, text: area.instruction || 'Evite a região e acompanhe as orientações da Defesa Civil.',

@@ -42,7 +42,7 @@ export function useSensorSimulation(initialAreas) {
 
           if (status === 'critico' && !activeAlert) {
             return [
-              { id: alertIdRef.current++, areaId: updatedArea.id, time: new Date().toLocaleTimeString('pt-BR'), value: newValue, resolved: false },
+              { id: alertIdRef.current++, areaId: updatedArea.id, time: new Date().toLocaleTimeString('pt-BR'), value: newValue, instruction: updatedArea.instruction || '', resolved: false },
               ...currentAlerts,
             ]
           }
@@ -67,5 +67,17 @@ export function useSensorSimulation(initialAreas) {
     setAlerts((current) => [{ id: `manual-${Date.now()}`, areaId, time: new Date().toLocaleTimeString('pt-BR'), value: null, resolved: false }, ...current])
   }
 
-  return { areas, alerts, resolveAlertLocally, addManualAlert }
+  function updateAlert(alertId, updates) {
+    setAlerts((current) => current.map((alert) => String(alert.id) === String(alertId) ? { ...alert, ...updates } : alert))
+  }
+
+  function removeAlert(alertId) {
+    setAlerts((current) => current.filter((alert) => String(alert.id) !== String(alertId)))
+  }
+
+  function updateAreaInstruction(areaId, instruction) {
+    setAreas((current) => current.map((area) => String(area.id) === String(areaId) ? { ...area, instruction } : area))
+  }
+
+  return { areas, alerts, resolveAlertLocally, addManualAlert, updateAlert, removeAlert, updateAreaInstruction }
 }

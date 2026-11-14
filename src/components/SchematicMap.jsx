@@ -65,6 +65,7 @@ export default function SchematicMap({
   shelters = [],
   focusAreaId,
   onSelectArea,
+  onSelectSensor,
   onSelectShelter,
   points = [],
   image,
@@ -136,7 +137,7 @@ export default function SchematicMap({
   const focusPosition = focusedItem ? toPercent(focusedItem) : null
 
   function handleMarkerClick(markerId) {
-    if (markerId.startsWith('area-')) onSelectArea?.(markerId.slice('area-'.length))
+    if (markerId.startsWith('area-')) (onSelectSensor || onSelectArea)?.(markerId.slice('area-'.length))
     else if (markerId.startsWith('point-')) onSelectArea?.(markerId.slice('point-'.length))
     else if (markerId.startsWith('shelter-')) onSelectShelter?.(markerId.slice('shelter-'.length))
   }
