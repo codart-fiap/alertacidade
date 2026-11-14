@@ -117,8 +117,9 @@ export default function SchematicMap({
     ...areas.map((area) => ({
       id: `area-${area.id}`,
       position: toPercent(area),
-      color: STATUS_COLOR[statusFromArea(area)],
+      color: area.active === false ? '#858b93' : STATUS_COLOR[statusFromArea(area)],
       label: area.name,
+      iconHtml: area.active === false ? '<span style="font-size:12px;line-height:1;">×</span>' : undefined,
       highlighted: isFocused(area.id),
     })),
     ...points.map((point) => ({
@@ -137,6 +138,11 @@ export default function SchematicMap({
   const focusPosition = focusedItem ? toPercent(focusedItem) : null
 
   function handleMarkerClick(markerId) {
+    if (isManagerPicking) {
+      const marker = markers.find((item) => item.id === markerId)
+      if (marker) onPickLocation({ x: marker.position.xPct / 100, y: marker.position.yPct / 100 })
+      return
+    }
     if (markerId.startsWith('area-')) (onSelectSensor || onSelectArea)?.(markerId.slice('area-'.length))
     else if (markerId.startsWith('point-')) onSelectArea?.(markerId.slice('point-'.length))
     else if (markerId.startsWith('shelter-')) onSelectShelter?.(markerId.slice('shelter-'.length))

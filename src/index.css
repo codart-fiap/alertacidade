@@ -199,6 +199,42 @@ button.recommendation-link { padding: 0; border: 0; background: none; text-decor
 .manager-alert-editor-backdrop { z-index: 1001; background: #0008; }
 .manager-checkbox-label { display: flex !important; align-items: center; gap: 9px !important; }
 .manager-checkbox-label input { width: 17px; height: 17px; accent-color: var(--accent); }
+.admin-sensors-title { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.admin-sensors-layout { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(0, 1.1fr); gap: 16px; align-items: start; margin-top: 14px; }
+.admin-sensor-list-panel { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.admin-sensor-section-heading { display: flex; align-items: center; gap: 9px; margin: 1px 0 10px; }
+.admin-sensor-section-heading h2 { margin: 0; font-size: 16px; }
+.admin-sensor-section-heading.inactive-heading { margin-top: 25px; padding-top: 17px; border-top: 1px solid var(--border); }
+.count-pill.neutral { color: var(--muted); background: var(--surface-2); }
+.admin-sensor-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--border); }
+.admin-sensor-row.is-inactive { opacity: .75; }
+.admin-sensor-main { min-width: 0; }
+.admin-sensor-name { display: flex; align-items: center; gap: 8px; }
+.admin-sensor-name h3 { overflow-wrap: anywhere; margin: 0; font-size: 14px; }
+.admin-sensor-state-dot { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--green); }
+.admin-sensor-state-dot.is-inactive { background: #858b93; }
+.admin-sensor-meta { display: flex; align-items: center; gap: 7px; margin-top: 7px; color: var(--muted); font-size: 12px; }
+.admin-inactive-label { color: var(--muted); font-size: 11px; }
+.admin-sensor-main > p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.admin-sensor-main > p b { color: var(--text); }
+.admin-sensor-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.admin-sensor-actions .btn { padding: 8px 10px; font-size: 12px; }
+.admin-sensor-map-panel { min-width: 0; }
+.admin-sensor-numeric-fields { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 10px; }
+.admin-sensor-numeric-fields label { min-width: 0; }
+@media (max-width: 850px) {
+  .admin-sensors-layout { grid-template-columns: minmax(0, 1fr); }
+  .admin-sensor-map-panel { order: -1; }
+}
+@media (max-width: 600px) {
+  .admin-sensors-title { align-items: stretch; flex-direction: column; }
+  .admin-sensors-title > .btn { width: 100%; }
+  .admin-sensor-list-panel { padding: 12px; }
+  .admin-sensor-row { align-items: flex-start; flex-direction: column; gap: 10px; }
+  .admin-sensor-actions { width: 100%; }
+  .admin-sensor-actions .btn { flex: 1; }
+  .admin-sensor-map-panel .map-stage { min-height: 310px; }
+}
 .manager-section { padding: 18px 0; border-bottom: 1px solid var(--border); }
 .manager-section h2 { margin: 0 0 12px; font-size: 17px; }
 .sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }

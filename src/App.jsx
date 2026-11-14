@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import AreasListPage from './pages/AreasListPage.jsx'
 import AreaDetailPage from './pages/AreaDetailPage.jsx'
 import AdminAlertsPage from './pages/AdminAlertsPage.jsx'
+import AdminSensorsPage from './pages/AdminSensorsPage.jsx'
 
 function MapRedirect() {
   const location = useLocation()
@@ -35,6 +36,14 @@ export default function App() {
           element={
             <ProtectedRoute requireRole="gestor">
               <AdminAlertsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/sensores"
+          element={
+            <ProtectedRoute requireRole="gestor">
+              <AdminSensorsPage />
             </ProtectedRoute>
           }
         />

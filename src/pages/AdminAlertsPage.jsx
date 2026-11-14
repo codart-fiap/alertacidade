@@ -20,7 +20,7 @@ export default function AdminAlertsPage() {
   const [alertDraft, setAlertDraft] = useState(null)
   const [focusedSensorId, setFocusedSensorId] = useState(null)
   const active = alerts.filter((a) => !a.resolved)
-  const orderedAreas = useMemo(() => [...areas].sort((a, b) => {
+  const orderedAreas = useMemo(() => areas.filter((area) => area.active !== false).sort((a, b) => {
     const rank = { critico: 0, atencao: 1, normal: 2 }
     const difference = rank[statusFromArea(a)] - rank[statusFromArea(b)]
     return difference || (b.value / b.threshold) - (a.value / a.threshold)

@@ -14,7 +14,7 @@ export default function Layout() {
         <Link to="/" className="brand"><span className="brand-dot" />AlertaCidade</Link>
         <nav className="app-nav">
           <Link to="/">Início</Link>
-          {manager ? <><Link to="/admin/alertas">Painel do gestor</Link><button className="btn secondary" onClick={logout}>Sair</button></> : <><Link to="/resumos">Resumos e alertas</Link>{user?.role === 'gestor' ? <Link to="/admin/alertas">Gestor</Link> : <Link to="/login">Gestor</Link>}</>}
+          {manager ? <><Link to="/admin/alertas">Painel do gestor</Link><Link to="/admin/sensores">Sensores</Link><button className="btn secondary" onClick={logout}>Sair</button></> : <><Link to="/resumos">Resumos e alertas</Link>{user?.role === 'gestor' ? <Link to="/admin/alertas">Gestor</Link> : <Link to="/login">Gestor</Link>}</>}
         </nav>
       </header>
       <div className="back-button-row"><button className="back-button" onClick={goBack}>← Voltar</button></div>

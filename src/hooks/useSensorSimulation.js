@@ -11,14 +11,16 @@ import { statusFromArea } from '../utils/risk.js'
 // Recebe a lista inicial de areas e devolve o estado atualizado +
 // a lista de alertas ativos, pra qualquer tela usar.
 export function useSensorSimulation(initialAreas) {
-  const [areas, setAreas] = useState(initialAreas)
+  const [areas, setAreas] = useState(() => initialAreas.map((area) => ({ ...area, active: area.active ?? true })))
   const [alerts, setAlerts] = useState([])
   const alertIdRef = useRef(1)
 
   useEffect(() => {
     const interval = setInterval(() => {
       setAreas((current) => {
-        const index = Math.floor(Math.random() * current.length)
+        const activeIndexes = current.reduce((indexes, area, index) => area.active === false ? indexes : [...indexes, index], [])
+        if (!activeIndexes.length) return current
+        const index = activeIndexes[Math.floor(Math.random() * activeIndexes.length)]
         const area = current[index]
         const spike = Math.random() < 0.25
 
@@ -79,5 +81,23 @@ export function useSensorSimulation(initialAreas) {
     setAreas((current) => current.map((area) => String(area.id) === String(areaId) ? { ...area, instruction } : area))
   }
 
-  return { areas, alerts, resolveAlertLocally, addManualAlert, updateAlert, removeAlert, updateAreaInstruction }
+  function addSensor(sensor) {
+    const id = `sensor-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    setAreas((current) => [...current, { ...sensor, id, value: Number(sensor.value ?? 0), threshold: Number(sensor.threshold), active: sensor.active ?? true }])
+    return id
+  }
+
+  function updateSensor(sensorId, updates) {
+    setAreas((current) => current.map((area) => String(area.id) === String(sensorId) ? { ...area, ...updates, value: Number(updates.value ?? area.value), threshold: Number(updates.threshold ?? area.threshold) } : area))
+    if (updates.active === false) {
+      setAlerts((current) => current.map((alert) => String(alert.areaId) === String(sensorId) ? { ...alert, resolved: true } : alert))
+    }
+  }
+
+  function removeSensor(sensorId) {
+    setAreas((current) => current.filter((area) => String(area.id) !== String(sensorId)))
+    setAlerts((current) => current.filter((alert) => String(alert.areaId) !== String(sensorId)))
+  }
+
+  return { areas, alerts, resolveAlertLocally, addManualAlert, updateAlert, removeAlert, updateAreaInstruction, addSensor, updateSensor, removeSensor }
 }
