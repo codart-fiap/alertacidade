@@ -9,7 +9,7 @@ export default function AlertBanner({ alert, areaName }) {
 
   return (
     <div
-      onClick={() => navigate(`/mapa?area=${alert.areaId}`)}
+      onClick={() => navigate(`/?area=${alert.areaId}`)}
       style={{
         display: 'flex',
         alignItems: 'center',

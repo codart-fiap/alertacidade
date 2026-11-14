@@ -131,6 +131,8 @@ export default function SchematicMap({
       ? [{ id: 'user-location', position: userLocation, color: USER_COLOR, label: 'Você' }]
       : []),
   ]
+  const focusedItem = [...areas, ...points].find((item) => isFocused(item.id))
+  const focusPosition = focusedItem ? toPercent(focusedItem) : null
 
   function handleMarkerClick(markerId) {
     if (markerId.startsWith('area-')) onSelectArea?.(markerId.slice('area-'.length))
@@ -169,6 +171,7 @@ export default function SchematicMap({
             width={activeWidth}
             height={activeHeight}
             markers={markers}
+            focusPosition={focusPosition}
             onMapClick={handleMapClick}
             onMarkerClick={handleMarkerClick}
             heightPx="100%"

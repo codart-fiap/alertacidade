@@ -82,6 +82,7 @@ function MapView({
   width,
   height,
   markers = [],
+  focusPosition,
   lines = [],
   onMapClick,
   onMarkerClick,
@@ -214,6 +215,13 @@ function MapView({
   useEffect(() => {
     redrawMarkersRef.current()
   }, [markers])
+
+  useEffect(() => {
+    if (!focusPosition || !mapRef.current) return
+    const target = percentToLatLng(focusPosition, width, height)
+    const map = mapRef.current
+    map.flyTo(target, Math.max(map.getZoom(), 1), { duration: 0.65 })
+  }, [focusPosition?.xPct, focusPosition?.yPct, width, height])
 
   return (
     <div

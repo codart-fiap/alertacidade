@@ -1,15 +1,24 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useSensors } from '../context/SensorContext.jsx'
 import SchematicMap from '../components/SchematicMap.jsx'
 import { statusFromArea } from '../utils/risk.js'
 
 export default function AreasListPage({ expanded = false }) {
   const { areas, alerts, shelters, publicPoints, mapImage } = useSensors()
-  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [focusAreaId, setFocusAreaId] = useState(searchParams.get('area'))
   const [location, setLocation] = useState(null)
   const [cardIndex, setCardIndex] = useState(0)
   const [touchStart, setTouchStart] = useState(null)
+  const mapSectionRef = useRef(null)
+  useEffect(() => {
+    const areaId = searchParams.get('area')
+    if (!expanded && areaId) {
+      setFocusAreaId(areaId)
+      requestAnimationFrame(() => mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
+  }, [expanded, searchParams])
   const allAreas = [...publicPoints, ...areas]
   const activeAlerts = alerts.filter((alert) => !alert.resolved)
   const urgentAreas = allAreas.filter((area) => publicPoints.some((point) => point.id === area.id) || statusFromArea(area) === 'critico')
@@ -38,16 +47,16 @@ export default function AreasListPage({ expanded = false }) {
         {cards.length ? <article className="recommendation-card" key={cards[cardIndex]?.id}>
           <span className="recommendation-icon">{cards[cardIndex]?.area?.type?.toLowerCase().includes('enchente') ? '🌊' : cards[cardIndex]?.area?.type?.toLowerCase().includes('deslizamento') ? '⛰️' : '⚠️'}</span>
           <div className="recommendation-copy"><strong>{cards[cardIndex]?.area?.name || 'Alerta próximo'} · {cards[cardIndex]?.area?.type}</strong><small>{cards[cardIndex]?.text}</small></div>
-          <Link className="recommendation-link" to={`/mapa?area=${cards[cardIndex]?.area?.id}`}>Ver</Link>
+          <button className="recommendation-link" onClick={() => { setFocusAreaId(cards[cardIndex]?.area?.id); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>Ver</button>
           {cards.length > 1 && <div className="recommendation-pagination"><span>{cardIndex + 1} de {cards.length}</span>{cards.map((card, index) => <button key={card.id} aria-label={`Ver recomendação ${index + 1}`} className={index === cardIndex ? 'active' : ''} onClick={() => setCardIndex(index)} />)}</div>}
         </article> : <article className="recommendation-card calm"><span className="recommendation-icon">✓</span><div className="recommendation-copy"><strong>Nenhum alerta ativo</strong><small>Marque sua localização para ver os pontos de atenção próximos no mapa.</small></div></article>}
       </section>}
       {expanded && <section className="citizen-notices"><h1>Todos os alertas</h1><p className="muted">Ordenados por gravidade e proximidade da localização marcada.</p>
-        {messages.length ? messages.map(({ id, area, text }) => <article className="notice-card" key={id}><span className="notice-label">ATENÇÃO</span><h2>{area?.type} · {area?.name}</h2><p>{text}</p><Link to={`/mapa?area=${area?.id}`}>Ver no mapa →</Link></article>) : <article className="notice-card calm"><h2>Nenhum alerta ativo</h2><p>Não há ocorrências que exijam ação neste momento. Acompanhe o mapa para ver pontos de atenção e abrigos.</p></article>}
-        {urgentAreas.filter((area) => !messages.some((message) => message.area?.id === area.id)).map((area) => <article className="notice-card" key={area.id}><span className="notice-label">ATENÇÃO</span><h2>{area.type} · {area.name}</h2><p>Evite a região e procure um local seguro. Acompanhe novas orientações da Defesa Civil.</p><Link to={`/mapa?area=${area.id}`}>Ver no mapa →</Link></article>)}
+        {messages.length ? messages.map(({ id, area, text }) => <article className="notice-card" key={id}><span className="notice-label">ATENÇÃO</span><h2>{area?.type} · {area?.name}</h2><p>{text}</p><Link to={`/?area=${area?.id}`}>Ver no mapa →</Link></article>) : <article className="notice-card calm"><h2>Nenhum alerta ativo</h2><p>Não há ocorrências que exijam ação neste momento. Acompanhe o mapa para ver pontos de atenção e abrigos.</p></article>}
+        {urgentAreas.filter((area) => !messages.some((message) => message.area?.id === area.id)).map((area) => <article className="notice-card" key={area.id}><span className="notice-label">ATENÇÃO</span><h2>{area.type} · {area.name}</h2><p>Evite a região e procure um local seguro. Acompanhe novas orientações da Defesa Civil.</p><Link to={`/?area=${area.id}`}>Ver no mapa →</Link></article>)}
       </section>}
-      {!expanded && <section className="citizen-map-section"><div className="section-heading"><div><h1>Mapa</h1><p className="muted">Localização, pontos de atenção e abrigos</p></div></div>
-        <SchematicMap areas={areas} shelters={shelters} points={publicPoints} image={mapImage} onLocationChange={setLocation} onSelectArea={(id) => navigate(`/mapa?area=${id}`)} />
+      {!expanded && <section ref={mapSectionRef} className="citizen-map-section"><div className="section-heading"><div><h1>Mapa</h1><p className="muted">Localização, pontos de atenção e abrigos</p></div></div>
+        <SchematicMap areas={areas} shelters={shelters} points={publicPoints} image={mapImage} focusAreaId={focusAreaId} onLocationChange={setLocation} onSelectArea={(id) => { setFocusAreaId(id); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
       </section>}
     </main>
   )

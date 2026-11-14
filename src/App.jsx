@@ -1,11 +1,15 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import AreasListPage from './pages/AreasListPage.jsx'
 import AreaDetailPage from './pages/AreaDetailPage.jsx'
-import MapPage from './pages/MapPage.jsx'
 import AdminAlertsPage from './pages/AdminAlertsPage.jsx'
+
+function MapRedirect() {
+  const location = useLocation()
+  return <Navigate to={{ pathname: '/', search: location.search }} replace />
+}
 
 // Todas as rotas da aplicacao ficam centralizadas aqui.
 // Se uma tela nova for adicionada, ela entra como mais uma <Route>
@@ -23,10 +27,7 @@ export default function App() {
           path="/areas/:id"
           element={<AreaDetailPage />}
         />
-        <Route
-          path="/mapa"
-          element={<MapPage />}
-        />
+        <Route path="/mapa" element={<MapRedirect />} />
 
         {/* rota do gestor: exige perfil "gestor" especificamente */}
         <Route

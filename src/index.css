@@ -105,6 +105,7 @@ button {
 .recommendation-copy strong { font-size: 14px; }
 .recommendation-copy small { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 12px; line-height: 1.35; }
 .recommendation-link { color: inherit; font-size: 12px; font-weight: 700; }
+button.recommendation-link { padding: 0; border: 0; background: none; text-decoration: underline; cursor: pointer; }
 .recommendation-pagination { position: absolute; right: 12px; bottom: 7px; left: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .recommendation-pagination span { margin-right: 4px; font-size: 10px; }
 .recommendation-pagination button { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 50%; background: currentColor; opacity: .35; }
