@@ -17,3 +17,16 @@
 .map-marker-pulse {
   animation: map-marker-pulse-kf 2s ease-out infinite;
 }
+
+.risk-zone-marker {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.risk-zone-area {
+  box-sizing: border-box;
+  border: 2px solid var(--risk-zone-border);
+  border-radius: 50%;
+  background: var(--risk-zone-fill);
+  pointer-events: none;
+}

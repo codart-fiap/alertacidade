@@ -70,6 +70,7 @@ function buildMarkerIcon(marker, showLabel) {
  *   width: number,
  *   height: number,
  *   markers?: Array<{id:string, position:{xPct:number,yPct:number}, color?:string, label?:string, iconHtml?:string, highlighted?:boolean}>,
+ *   zones?: Array<{id:string, position:{xPct:number,yPct:number}, radius:number, color?:string}>,
  *   lines?: Array<{id:string, from:{xPct:number,yPct:number}, to:{xPct:number,yPct:number}, color?:string}>,
  *   onMapClick?: (point:{xPct:number,yPct:number}) => void,
  *   onMarkerClick?: (markerId:string) => void,
@@ -82,6 +83,7 @@ function MapView({
   width,
   height,
   markers = [],
+  zones = [],
   focusPosition,
   lines = [],
   onMapClick,
@@ -93,6 +95,7 @@ function MapView({
   const mapRef = useRef(null)
   const markersLayerRef = useRef(null)
   const linesLayerRef = useRef(null)
+  const zonesLayerRef = useRef(null)
 
   // Refs para os callbacks/dados "mais recentes": evita recriar o mapa ou
   // registrar handlers novos só porque quem usa o componente passou uma
@@ -105,6 +108,8 @@ function MapView({
   onLineClickRef.current = onLineClick
   const markersRef = useRef(markers)
   markersRef.current = markers
+  const zonesRef = useRef(zones)
+  zonesRef.current = zones
   const redrawMarkersRef = useRef(() => {})
 
   useEffect(() => {
@@ -122,6 +127,11 @@ function MapView({
       attributionControl: false,
       zoomControl: true,
     })
+
+    // Put risk overlays in a dedicated pane between the map image and
+    // marker icons so the image can never cover the monitored areas.
+    const riskPane = map.createPane('riskZones')
+    riskPane.style.zIndex = '550'
 
     L.imageOverlay(imageDataUrl, bounds).addTo(map)
     map.fitBounds(bounds)
@@ -142,12 +152,40 @@ function MapView({
     markersLayerRef.current = markersLayer
     const linesLayer = L.layerGroup().addTo(map)
     linesLayerRef.current = linesLayer
+    const zonesLayer = L.layerGroup().addTo(map)
+    zonesLayerRef.current = zonesLayer
     mapRef.current = map
 
     // Redesenha todos os marcadores, decidindo (por proximidade em pixels de
     // tela) quais mostram o nome. Reexecutado a cada zoom/arraste, porque a
     // distância em pixels entre dois pontos do mapa muda com o zoom.
     function redrawMarkers() {
+      const zonesLayer = zonesLayerRef.current
+      if (zonesLayer) {
+        zonesLayer.clearLayers()
+        zonesRef.current.forEach((zone) => {
+          const center = percentToLatLng(zone.position, width, height)
+          const mapRadius = Math.min(width, height) * (zone.radius / 100)
+          const centerPoint = map.latLngToLayerPoint(center)
+          const radiusPoint = map.latLngToLayerPoint([center[0], center[1] + mapRadius])
+          const screenRadius = Math.max(8, centerPoint.distanceTo(radiusPoint))
+          const diameter = Math.round(screenRadius * 2)
+          const color = zone.color ?? '#ff5a5a'
+          const zoneIcon = L.divIcon({
+            className: 'risk-zone-marker',
+            html: `<div class="risk-zone-area" style="--risk-zone-color:${color};--risk-zone-fill:${color}40;--risk-zone-border:${color}b3;width:${diameter}px;height:${diameter}px;"></div>`,
+            iconSize: [diameter, diameter],
+            iconAnchor: [screenRadius, screenRadius],
+          })
+          L.marker(center, {
+            icon: zoneIcon,
+            pane: 'riskZones',
+            interactive: false,
+            keyboard: false,
+          }).addTo(zonesLayer)
+        })
+      }
+
       const layer = markersLayerRef.current
       if (!layer) return
       layer.clearLayers()
@@ -189,6 +227,7 @@ function MapView({
       mapRef.current = null
       markersLayerRef.current = null
       linesLayerRef.current = null
+      zonesLayerRef.current = null
     }
   }, [imageDataUrl, width, height])
 
@@ -214,7 +253,7 @@ function MapView({
 
   useEffect(() => {
     redrawMarkersRef.current()
-  }, [markers])
+  }, [markers, zones])
 
   useEffect(() => {
     if (!focusPosition || !mapRef.current) return

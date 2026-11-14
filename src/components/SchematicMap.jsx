@@ -138,6 +138,16 @@ export default function SchematicMap({
       ? [{ id: 'user-location', position: userLocation, color: USER_COLOR, label: 'Você', iconHtml: USER_LOCATION_ICON }]
       : []),
   ]
+  const zones = areas.filter((area) => area.active !== false).map((area) => {
+    const ratio = Number(area.value) / Number(area.threshold)
+    const boundedRatio = Number.isFinite(ratio) ? Math.max(0, Math.min(ratio, 2.4)) : 0
+    return {
+      id: `risk-zone-${area.id}`,
+      position: toPercent(area),
+      radius: Math.max(4, Math.min(22, 3 + boundedRatio * 8)),
+      color: STATUS_COLOR[statusFromArea(area)],
+    }
+  })
   const focusedItem = [...areas, ...points].find((item) => isFocused(item.id))
   const focusPosition = focusedItem ? toPercent(focusedItem) : null
 
@@ -183,6 +193,7 @@ export default function SchematicMap({
             width={activeWidth}
             height={activeHeight}
             markers={markers}
+            zones={zones}
             focusPosition={focusPosition}
             onMapClick={handleMapClick}
             onMarkerClick={handleMarkerClick}
@@ -199,6 +210,7 @@ export default function SchematicMap({
           <span><i className="map-legend-icon sensor" dangerouslySetInnerHTML={{ __html: SENSOR_ICON }} />Sensor · risco</span>
           <span><i className="map-legend-icon shelter" dangerouslySetInnerHTML={{ __html: SHELTER_ICON }} />Abrigo</span>
           <span><i className="map-legend-icon attention" dangerouslySetInnerHTML={{ __html: ATTENTION_ICON }} />Ponto de atenção</span>
+          <span><i className="map-legend-area" />Área monitorada</span>
           {!onImageChange && <span><i className="map-legend-icon user" dangerouslySetInnerHTML={{ __html: USER_LOCATION_ICON }} />Sua localização</span>}
         </div>
         {isManagerPicking && (
