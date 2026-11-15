@@ -5,7 +5,7 @@ import StatusBadge from '../components/StatusBadge.jsx'
 import SchematicMap from '../components/SchematicMap.jsx'
 
 export default function AdminAlertsPage() {
-  const { areas, alerts, resolveAlertLocally, updateAlert, updateAreaInstruction, removeAlert, shelters, addShelter, updateShelter, removeShelter, addPublicPoint, updatePublicPoint, removePublicPoint, publicPoints, mapImage, updateMapImage } = useSensors()
+  const { areas, sensors, alerts, resolveAlertLocally, deactivateRiskArea, apiMode, apiError, loading, updateAlert, updateAreaInstruction, removeAlert, shelters, addShelter, updateShelter, removeShelter, addPublicPoint, updatePublicPoint, removePublicPoint, publicPoints, mapImage, updateMapImage } = useSensors()
   const [pickFor, setPickFor] = useState('')
   const [formFor, setFormFor] = useState('')
   const [location, setLocation] = useState(null)
@@ -20,11 +20,11 @@ export default function AdminAlertsPage() {
   const [alertDraft, setAlertDraft] = useState(null)
   const [focusedSensorId, setFocusedSensorId] = useState(null)
   const active = alerts.filter((a) => !a.resolved)
-  const orderedAreas = useMemo(() => areas.filter((area) => area.active !== false).sort((a, b) => {
+  const orderedSensors = useMemo(() => sensors.filter((sensor) => sensor.active !== false).sort((a, b) => {
     const rank = { critico: 0, atencao: 1, normal: 2 }
     const difference = rank[statusFromArea(a)] - rank[statusFromArea(b)]
-    return difference || (b.value / b.threshold) - (a.value / a.threshold)
-  }), [areas])
+    return difference || (Number(b.value || 0) / b.threshold) - (Number(a.value || 0) / a.threshold)
+  }), [sensors])
 
   function beginPick(type) {
     setEditing(null)
@@ -64,11 +64,20 @@ export default function AdminAlertsPage() {
     setEditing(null); setFormFor('')
   }
   function openSensorHistory(id) {
+    if (apiMode) return
     const sensor = areas.find((area) => String(area.id) === String(id))
     if (sensor) {
       setFocusedSensorId(sensor.id)
       setHistorySensor(sensor); setAlertDraft(null); setFormFor(''); setPickFor('')
       window.requestAnimationFrame(() => document.querySelector('.manager-map-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    }
+  }
+  async function closeAlert(alert) {
+    try {
+      if (apiMode) await deactivateRiskArea(alert.areaId)
+      else resolveAlertLocally(alert.id)
+    } catch (error) {
+      setNotice(error.message)
     }
   }
   function openAlertEditor(alert) {
@@ -106,32 +115,33 @@ export default function AdminAlertsPage() {
 
   return <main className="page manager-page">
     <div className="manager-title"><div><span className="eyebrow">ÁREA RESTRITA</span><h1>Painel do gestor</h1><p className="muted">Monitore sensores e cadastre locais diretamente no mapa.</p></div></div>
+    {loading && <p className="muted" role="status">Carregando dados do Pluvia…</p>}{apiError && <p className="error-text" role="alert">{apiError}</p>}{apiMode && <p className="muted">Dados sincronizados com o Pluvia. Encerrar um alerta desativa a área de risco; cadastro de sensores e edição de alertas ainda não fazem parte da API.</p>}
     <div className="manager-workspace">
       <aside className="manager-sensors" aria-label="Sensores ativos ordenados por criticidade">
-        <div className="manager-panel-heading"><div><span className="eyebrow">MONITORAMENTO</span><h2>Sensores ativos</h2></div><span className="count-pill">{areas.length}</span></div>
+        <div className="manager-panel-heading"><div><span className="eyebrow">MONITORAMENTO</span><h2>Sensores ativos</h2></div><span className="count-pill">{orderedSensors.length}</span></div>
         <p className="muted">Ordenados do mais crítico ao mais estável.</p>
-        <div className="manager-sensor-list">{orderedAreas.map((area) => <article className={`manager-sensor-card risk-${statusFromArea(area)}`} key={area.id} role="button" tabIndex={0} aria-label={`Focar ${area.name} no mapa e abrir histórico de alertas`} onClick={() => openSensorHistory(area.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openSensorHistory(area.id) } }}>
-          <div className="manager-sensor-card-top"><span className="manager-risk-dot" aria-hidden="true"/><b>{area.name}</b></div>
-          <StatusBadge status={statusFromArea(area)} />
-          <p>{area.type}</p><strong>{area.sensor}: {area.value}{area.unit}</strong>
-          <small>Limite: {area.threshold}{area.unit} · {statusLabel(statusFromArea(area))}</small>
+        <div className="manager-sensor-list">{orderedSensors.map((sensor) => <article className={`manager-sensor-card risk-${statusFromArea(sensor)}`} key={sensor.id} role="button" tabIndex={0} aria-label={`Focar ${sensor.name} no mapa e abrir histórico de alertas`} onClick={() => openSensorHistory(sensor.areaId ?? sensor.id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openSensorHistory(sensor.areaId ?? sensor.id) } }}>
+          <div className="manager-sensor-card-top"><span className="manager-risk-dot" aria-hidden="true"/><b>{sensor.name}</b></div>
+          <StatusBadge status={statusFromArea(sensor)} />
+          <p>{sensor.areaName || sensor.type}</p><strong>{sensor.sensor}: {sensor.value == null ? 'Sem leitura disponível' : `${sensor.value}${sensor.unit}`}</strong>
+          <small>Limite: {sensor.threshold}{sensor.unit} · {statusLabel(statusFromArea(sensor))}</small>
         </article>)}</div>
       </aside>
       <section className={`manager-map-panel ${pickFor ? 'is-picking' : ''}`} aria-label="Mapa e cadastro de locais">
         <div className="manager-map-toolbar">
           <div><span className="eyebrow">MAPA DA REGIÃO</span><h2>Mapa de referência</h2></div>
-          <div className="manager-map-actions">
+          {!apiMode && <div className="manager-map-actions">
             <button className="btn manager-add-button" onClick={() => beginPick('shelter')}><span aria-hidden="true">＋</span> Cadastrar abrigo</button>
             <button className="btn manager-add-button" onClick={() => beginPick('point')}><span aria-hidden="true">＋</span> Cadastrar ponto de atenção</button>
-          </div>
+          </div>}
         </div>
         {pickFor && <div className="manager-pick-banner" role="status"><span aria-hidden="true">⌖</span> Clique no mapa para escolher a localização {pickFor === 'shelter' ? 'do abrigo' : 'do ponto de atenção'}. <button onClick={() => { setPickFor(''); setNotice('') }}>Cancelar</button></div>}
         {notice && <div className="manager-map-notice" role="status">{notice}</div>}
-        <div className="manager-map"><SchematicMap areas={areas} shelters={shelters} points={publicPoints} image={mapImage} focusAreaId={focusedSensorId} onImageChange={updateMapImage} onSelectSensor={openSensorHistory} onSelectArea={(id) => { if (publicPoints.some((point) => String(point.id) === String(id))) editPoint(id) }} onSelectShelter={editShelter} onPickLocation={pickFor ? handleMapPick : undefined} pickingLabel={pickFor === 'shelter' ? 'Clique no mapa para marcar o abrigo' : 'Clique no mapa para marcar o ponto de atenção'} /></div>
+        <div className="manager-map"><SchematicMap areas={areas} sensors={sensors} shelters={shelters} points={publicPoints} image={mapImage} focusAreaId={focusedSensorId} onImageChange={updateMapImage} onSelectSensor={openSensorHistory} onSelectArea={(id) => { if (publicPoints.some((point) => String(point.id) === String(id))) editPoint(id) }} onSelectShelter={editShelter} onPickLocation={pickFor ? handleMapPick : undefined} pickingLabel={pickFor === 'shelter' ? 'Clique no mapa para marcar o abrigo' : 'Clique no mapa para marcar o ponto de atenção'} /></div>
         <p className="map-caption">Arraste para mover · use os botões ou a roda do mouse para aproximar</p>
       </section>
     </div>
-    <section className="manager-section manager-alerts-section"><h2>Alertas ativos <span className="count-pill">{active.length}</span></h2>{active.length ? active.map((alert) => { const area = [...publicPoints, ...areas].find((a) => String(a.id) === String(alert.areaId)); return <article className="manager-alert" key={alert.id}><div><b>{area?.name || alert.areaId}</b><p>{area?.type || 'Ponto de atenção'} · {alert.time}</p></div><button className="btn secondary" onClick={() => resolveAlertLocally(alert.id)}>Encerrar</button></article> }) : <p className="muted">Nenhum alerta ativo.</p>}</section>
+    <section className="manager-section manager-alerts-section"><h2>Alertas ativos <span className="count-pill">{active.length}</span></h2>{active.length ? active.map((alert) => { const area = [...publicPoints, ...areas].find((a) => String(a.id) === String(alert.areaId)); return <article className="manager-alert" key={alert.id}><div><b>{area?.name || alert.areaId}</b><p>{area?.type || 'Ponto de atenção'} · {alert.time}</p></div><button className="btn secondary" onClick={() => closeAlert(alert)}>{apiMode ? 'Desativar área' : 'Encerrar'}</button></article> }) : <p className="muted">Nenhum alerta ativo.</p>}</section>
     {formFor && <div className="manager-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) closeForm() }}>
       <section className="manager-modal" role="dialog" aria-modal="true" aria-labelledby="manager-modal-title">
         <button className="manager-modal-close" aria-label="Fechar" onClick={closeForm}>×</button>

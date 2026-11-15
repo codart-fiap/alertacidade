@@ -4,12 +4,14 @@ import { useSensors } from '../context/SensorContext.jsx'
 const EMPTY_DRAFT = { title: '', message: '', scope: 'global', sensorId: '' }
 
 export default function AdminNotificationsPage() {
-  const { areas, managerNotifications, addManagerNotification, updateManagerNotification, removeManagerNotification } = useSensors()
+  const { areas, managerNotifications, addManagerNotification, updateManagerNotification, removeManagerNotification, apiMode } = useSensors()
   const [draft, setDraft] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [feedback, setFeedback] = useState('')
   const activeSensors = areas.filter((area) => area.active !== false)
   const activeCount = managerNotifications.filter((notification) => notification.active).length
+
+  if (apiMode) return <main className="page manager-page"><span className="eyebrow">ÁREA RESTRITA</span><h1>Notificações</h1><p className="muted">O Pluvia ainda não oferece endpoints para publicar notificações administrativas. Alertas automáticos do sistema aparecem no mapa e no painel.</p></main>
 
   function startNew() {
     setDraft({ ...EMPTY_DRAFT, sensorId: activeSensors[0] ? String(activeSensors[0].id) : '' })

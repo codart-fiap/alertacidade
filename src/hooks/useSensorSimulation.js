@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
+import { hasRealApi } from '../services/apiClient.js'
 import { postLeitura } from '../services/apiClient.js'
 import { statusFromArea } from '../utils/risk.js'
 
@@ -16,6 +17,7 @@ export function useSensorSimulation(initialAreas) {
   const alertIdRef = useRef(1)
 
   useEffect(() => {
+    if (hasRealApi) return undefined
     const interval = setInterval(() => {
       setAreas((current) => {
         const activeIndexes = current.reduce((indexes, area, index) => area.active === false ? indexes : [...indexes, index], [])

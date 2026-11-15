@@ -67,6 +67,7 @@ const PLACEHOLDER_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(`
 
 export default function SchematicMap({
   areas = [],
+  sensors = [],
   shelters = [],
   focusAreaId,
   onSelectArea,
@@ -120,14 +121,32 @@ export default function SchematicMap({
       label: shelter.name,
       iconHtml: SHELTER_ICON,
     })),
-    ...areas.map((area) => ({
-      id: `area-${area.id}`,
-      position: toPercent(area),
-      color: area.active === false ? '#858b93' : STATUS_COLOR[statusFromArea(area)],
-      label: area.name,
-      iconHtml: area.active === false ? '<span style="font-size:15px;line-height:1;">×</span>' : SENSOR_ICON,
-      highlighted: isFocused(area.id),
-    })),
+    ...(sensors.length
+      ? sensors.map((sensor) => {
+          const group = sensors.filter((item) => String(item.areaId ?? item.id) === String(sensor.areaId ?? sensor.id))
+          const groupIndex = group.findIndex((item) => String(item.id) === String(sensor.id))
+          const basePosition = toPercent(sensor)
+          const offset = (groupIndex - (group.length - 1) / 2) * 8
+          return {
+            id: `sensor-${sensor.id}`,
+            position: {
+              xPct: Math.max(3, Math.min(97, basePosition.xPct + offset)),
+              yPct: Math.max(4, Math.min(96, basePosition.yPct + (groupIndex % 2 ? 2 : -2))),
+            },
+            color: sensor.active === false ? '#858b93' : STATUS_COLOR[statusFromArea(sensor)],
+            label: sensor.name,
+            iconHtml: sensor.active === false ? '<span style="font-size:15px;line-height:1;">×</span>' : SENSOR_ICON,
+            highlighted: isFocused(sensor.areaId ?? sensor.id),
+          }
+        })
+      : areas.map((area) => ({
+          id: `area-${area.id}`,
+          position: toPercent(area),
+          color: area.active === false ? '#858b93' : STATUS_COLOR[statusFromArea(area)],
+          label: area.name,
+          iconHtml: area.active === false ? '<span style="font-size:15px;line-height:1;">×</span>' : SENSOR_ICON,
+          highlighted: isFocused(area.id),
+        }))),
     ...points.map((point) => ({
       id: `point-${point.id}`,
       position: toPercent(point),
@@ -162,7 +181,10 @@ export default function SchematicMap({
       if (marker) onPickLocation({ x: marker.position.xPct / 100, y: marker.position.yPct / 100 })
       return
     }
-    if (markerId.startsWith('area-')) (onSelectSensor || onSelectArea)?.(markerId.slice('area-'.length))
+    if (markerId.startsWith('sensor-')) {
+      const sensor = sensors.find((item) => String(item.id) === markerId.slice('sensor-'.length))
+      if (sensor) (onSelectSensor || onSelectArea)?.(sensor.areaId ?? sensor.id)
+    } else if (markerId.startsWith('area-')) (onSelectSensor || onSelectArea)?.(markerId.slice('area-'.length))
     else if (markerId.startsWith('point-')) onSelectArea?.(markerId.slice('point-'.length))
     else if (markerId.startsWith('shelter-')) onSelectShelter?.(markerId.slice('shelter-'.length))
   }

@@ -4,6 +4,7 @@ import { useSensors } from '../context/SensorContext.jsx'
 import SchematicMap from '../components/SchematicMap.jsx'
 import { getImageDimensions } from '../map/image.js'
 import { isLocationInsideMonitoringArea, isLocationNearPoint, statusFromArea } from '../utils/risk.js'
+import { getRecommendation, hasRealApi } from '../services/apiClient.js'
 
 const DEFAULT_MAP_DIMENSIONS = { width: 1000, height: 600 }
 const EMPTY_REPORT = { name: '', type: 'Enchente', instruction: '' }
@@ -27,7 +28,7 @@ function defaultSafetyInstruction(area) {
 }
 
 export default function AreasListPage({ expanded = false }) {
-  const { areas, alerts, shelters, publicPoints, mapImage, managerNotifications, citizenReports, submitCitizenReport, confirmCitizenReport } = useSensors()
+  const { areas, sensors, alerts, shelters, publicPoints, mapImage, managerNotifications, citizenReports, submitCitizenReport, confirmCitizenReport } = useSensors()
   const [searchParams] = useSearchParams()
   const [focusAreaId, setFocusAreaId] = useState(searchParams.get('area'))
   const [location, setLocation] = useState(null)
@@ -40,6 +41,9 @@ export default function AreasListPage({ expanded = false }) {
   const [reportLocation, setReportLocation] = useState(null)
   const [pickingReportLocation, setPickingReportLocation] = useState(false)
   const [reportFeedback, setReportFeedback] = useState('')
+  const [recommendation, setRecommendation] = useState(null)
+  const [recommendationError, setRecommendationError] = useState('')
+  const [recommendationLoading, setRecommendationLoading] = useState(false)
   const [citizenSessionId] = useState(getCitizenSessionId)
   const notifiedSensorsRef = useRef(new Set())
   const seenPublishedNotificationsRef = useRef(new Set())
@@ -136,6 +140,27 @@ export default function AreasListPage({ expanded = false }) {
     const confirmed = confirmCitizenReport(report.id, citizenSessionId)
     setReportFeedback(confirmed ? 'Confirmado! O ponto agora está visível para todos no mapa.' : 'Este relato foi feito nesta sessão e precisa ser confirmado por outro cidadão próximo.')
   }
+  function requestSafetyRecommendation() {
+    setRecommendationError('')
+    setRecommendation(null)
+    if (!navigator.geolocation) {
+      setRecommendationError('Este navegador não oferece acesso à localização.')
+      return
+    }
+    setRecommendationLoading(true)
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      try {
+        setRecommendation(await getRecommendation(coords.latitude, coords.longitude))
+      } catch (error) {
+        setRecommendationError(error.message)
+      } finally {
+        setRecommendationLoading(false)
+      }
+    }, () => {
+      setRecommendationError('Não foi possível obter sua localização. Confira a permissão do navegador.')
+      setRecommendationLoading(false)
+    }, { enableHighAccuracy: true, timeout: 12000 })
+  }
   const urgentAreas = allAreas.filter((area) => publicPoints.some((point) => point.id === area.id) || statusFromArea(area) === 'critico')
   const messages = activeAlerts.map((alert) => {
     const area = allAreas.find((item) => String(item.id) === String(alert.areaId))
@@ -185,9 +210,10 @@ export default function AreasListPage({ expanded = false }) {
         {messages.length ? messages.map(({ id, area, text }) => <article className="notice-card" key={id}><span className="notice-label">ATENÇÃO</span><h2>{area?.type} · {area?.name}</h2><p>{text}</p><Link to={`/?area=${area?.id}`}>Ver no mapa →</Link></article>) : <article className="notice-card calm"><h2>Nenhum alerta ativo</h2><p>Não há ocorrências que exijam ação neste momento. Acompanhe o mapa para ver pontos de atenção e abrigos.</p></article>}
         {urgentAreas.filter((area) => !messages.some((message) => message.area?.id === area.id)).map((area) => <article className="notice-card" key={area.id}><span className="notice-label">ATENÇÃO</span><h2>{area.type} · {area.name}</h2><p>Evite a região e procure um local seguro. Acompanhe novas orientações da Defesa Civil.</p><Link to={`/?area=${area.id}`}>Ver no mapa →</Link></article>)}
       </section>}
-      {!expanded && <section ref={mapSectionRef} className="citizen-map-section"><div className="section-heading citizen-map-heading"><div><h1>Mapa</h1><p className="muted">Localização, pontos de atenção e abrigos</p></div><button className="btn citizen-report-button" onClick={startCitizenReport}>＋ Reportar ponto de atenção</button></div>
+      {!expanded && <section ref={mapSectionRef} className="citizen-map-section"><div className="section-heading citizen-map-heading"><div><h1>Mapa</h1><p className="muted">Localização, pontos de atenção e abrigos</p></div>{!hasRealApi && <button className="btn citizen-report-button" onClick={startCitizenReport}>＋ Reportar ponto de atenção</button>}</div>
         {pickingReportLocation && <div className="manager-pick-banner citizen-report-pick-banner" role="status"><span aria-hidden="true">⌖</span> Toque no mapa para marcar onde está acontecendo.<button onClick={() => { setPickingReportLocation(false); setReportDraft(null) }}>Cancelar</button></div>}
-        <SchematicMap areas={areas} shelters={shelters} points={publicPoints} pendingPoints={nearbyCitizenReports} image={mapImage} focusAreaId={focusAreaId} onLocationChange={setLocation} onPickLocation={pickingReportLocation ? selectReportLocation : undefined} pickingLabel="Toque no mapa para marcar o ponto de atenção" onSelectArea={(id) => { setFocusAreaId(id); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
+        <SchematicMap areas={areas} sensors={sensors} shelters={shelters} points={publicPoints} pendingPoints={nearbyCitizenReports} image={mapImage} focusAreaId={focusAreaId} onLocationChange={setLocation} onPickLocation={pickingReportLocation ? selectReportLocation : undefined} pickingLabel="Toque no mapa para marcar o ponto de atenção" onSelectArea={(id) => { setFocusAreaId(id); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
+        {hasRealApi && <section className="citizen-report-list" aria-label="Recomendação pela localização atual"><div className="admin-sensor-section-heading"><h2>Minha localização</h2><button className="btn secondary" onClick={requestSafetyRecommendation} disabled={recommendationLoading}>{recommendationLoading ? 'Consultando…' : 'Ver recomendação de segurança'}</button></div><p className="muted">A API compara sua posição com as áreas ativas e indica o ponto seguro mais próximo.</p>{recommendationError && <p className="error-text" role="alert">{recommendationError}</p>}{recommendation && <article className="notice-card"><span className="notice-label">{recommendation.situacao?.replaceAll('_', ' ')}</span><h2>{recommendation.areaRisco || 'Situação da região'}</h2><p>{recommendation.mensagem}</p>{recommendation.pontoSeguro && <p><b>Ponto seguro:</b> {recommendation.pontoSeguro.nome} · {recommendation.pontoSeguro.distanciaMetros} m</p>}</article>}</section>}
         {reportFeedback && <p className="citizen-report-feedback" role="status">{reportFeedback}</p>}
         <section className="citizen-report-list" aria-label="Relatos de pontos de atenção próximos"><div className="admin-sensor-section-heading"><h2>Pontos aguardando confirmação</h2><span className="count-pill neutral">{nearbyCitizenReports.filter((report) => report.reporterId !== citizenSessionId).length}</span></div>
           {nearbyCitizenReports.length ? nearbyCitizenReports.map((report) => <article className="citizen-report-card" key={report.id}><div><span className="eyebrow">RELATO DA COMUNIDADE</span><h3>{report.name} · {report.type}</h3><p>{report.instruction}</p><small>{report.reporterId === citizenSessionId ? 'Seu relato · aguardando confirmação de outra pessoa' : 'Você está perto deste local? Confirme se o ponto continua lá.'}</small></div>{report.reporterId !== citizenSessionId && <button className="btn citizen-confirm-button" onClick={() => confirmReport(report)}>Continua lá</button>}</article>) : <p className="muted">Marque sua localização no mapa para ver relatos próximos que precisam de confirmação.</p>}

@@ -6,6 +6,11 @@
 // o front nao deveria precisar recalcular isso.
 
 export function statusFromArea(area) {
+  if (area.riskLevel) {
+    if (area.riskLevel === 'ALTO') return 'critico'
+    if (area.riskLevel === 'MEDIO') return 'atencao'
+    if (area.riskLevel === 'BAIXO') return 'normal'
+  }
   const ratio = area.value / area.threshold
   if (ratio >= 1) return 'critico'
   if (ratio >= 0.8) return 'atencao'

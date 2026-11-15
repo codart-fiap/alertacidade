@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useSensorSimulation } from '../hooks/useSensorSimulation.js'
 import { mockAreas, mockShelters } from '../services/mockData.js'
+import { getDashboardData, hasRealApi, setRiskAreaActive } from '../services/apiClient.js'
 
 const SensorContext = createContext(null)
 const MANAGER_NOTIFICATIONS_KEY = 'alertacidade-manager-notifications'
@@ -24,7 +25,16 @@ function readStoredArray(key, value = localStorage.getItem(key)) {
 // propria (o que criaria estados duplicados e desincronizados).
 export function SensorProvider({ children }) {
   const simulation = useSensorSimulation(mockAreas)
-  const [shelters, setShelters] = useState(() => mockShelters.map((shelter, index) => ({ ...shelter, id: shelter.id ?? `shelter-${index + 1}` })))
+  const [apiAreas, setApiAreas] = useState(() => hasRealApi ? [] : mockAreas)
+  const [apiSensors, setApiSensors] = useState([])
+  const [apiAlerts, setApiAlerts] = useState([])
+  const [apiShelters, setApiShelters] = useState(() => hasRealApi ? [] : mockShelters.map((shelter, index) => ({ ...shelter, id: shelter.id ?? `shelter-${index + 1}` })))
+  const [loading, setLoading] = useState(hasRealApi)
+  const [apiError, setApiError] = useState('')
+  const areas = hasRealApi ? apiAreas : simulation.areas
+  const sensors = hasRealApi ? apiSensors : simulation.areas.map((area) => ({ ...area, areaId: area.id, areaName: area.name }))
+  const alerts = hasRealApi ? apiAlerts : simulation.alerts
+  const shelters = apiShelters
   const [publicPoints, setPublicPoints] = useState(() => readStoredArray(PUBLIC_POINTS_KEY))
   const publicPointsRef = useRef(publicPoints)
   const [citizenReports, setCitizenReports] = useState(() => readStoredArray(CITIZEN_REPORTS_KEY))
@@ -32,6 +42,38 @@ export function SensorProvider({ children }) {
   const [managerNotifications, setManagerNotifications] = useState(() => readStoredArray(MANAGER_NOTIFICATIONS_KEY))
   const managerNotificationsRef = useRef(managerNotifications)
   const [mapImage, setMapImage] = useState(() => localStorage.getItem('alertacidade-map-image') || '')
+  useEffect(() => {
+    if (!hasRealApi) return undefined
+    let disposed = false
+    let refreshing = false
+    async function refresh() {
+      if (disposed || refreshing || document.hidden) return
+      refreshing = true
+      try {
+        const data = await getDashboardData()
+        if (disposed) return
+        setApiAreas(data.areas)
+        setApiSensors(data.sensors)
+        setApiAlerts(data.alerts)
+        setApiShelters(data.shelters)
+        setApiError('')
+      } catch (error) {
+        if (!disposed) setApiError(error.message)
+      } finally {
+        if (!disposed) setLoading(false)
+        refreshing = false
+      }
+    }
+    refresh()
+    const interval = window.setInterval(refresh, 5000)
+    const handleVisibility = () => { if (!document.hidden) refresh() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      disposed = true
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [])
   useEffect(() => {
     function syncNotifications(event) {
       if (event.key === null || event.key === MANAGER_NOTIFICATIONS_KEY) {
@@ -117,7 +159,21 @@ export function SensorProvider({ children }) {
   function removeManagerNotification(id) {
     commitManagerNotifications(managerNotificationsRef.current.filter((notification) => notification.id !== id))
   }
-  return <SensorContext.Provider value={{ ...simulation, shelters, addShelter, updateShelter, removeShelter, publicPoints, addPublicPoint, updatePublicPoint, removePublicPoint, citizenReports, submitCitizenReport, confirmCitizenReport, managerNotifications, addManagerNotification, updateManagerNotification, removeManagerNotification, mapImage, updateMapImage }}>
+  async function deactivateRiskArea(areaId) {
+    if (!hasRealApi) {
+      simulation.alerts.filter((alert) => String(alert.areaId) === String(areaId) && !alert.resolved).forEach((alert) => simulation.resolveAlertLocally(alert.id))
+      return
+    }
+    const area = apiAreas.find((item) => String(item.id) === String(areaId))
+    if (!area) throw new Error('Área de risco não encontrada.')
+    await setRiskAreaActive(area, false)
+    const data = await getDashboardData()
+    setApiAreas(data.areas)
+    setApiSensors(data.sensors)
+    setApiAlerts(data.alerts)
+    setApiShelters(data.shelters)
+  }
+  return <SensorContext.Provider value={{ ...simulation, areas, sensors, alerts, shelters, loading, apiError, apiMode: hasRealApi, deactivateRiskArea, addShelter, updateShelter, removeShelter, publicPoints, addPublicPoint, updatePublicPoint, removePublicPoint, citizenReports, submitCitizenReport, confirmCitizenReport, managerNotifications, addManagerNotification, updateManagerNotification, removeManagerNotification, mapImage, updateMapImage }}>
     {children}
   </SensorContext.Provider>
 }

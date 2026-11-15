@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { validateEmail, validatePassword } from '../utils/validation.js'
+import { hasRealApi } from '../services/apiClient.js'
 
 export default function LoginPage() {
   const { user, login, loading, error } = useAuth()
@@ -68,7 +69,7 @@ export default function LoginPage() {
       </form>
 
       <p style={{ color: 'var(--muted)', fontSize: 12, marginTop: 24, lineHeight: 1.6 }}>
-        Acesso de demonstração — gestor: gestor@teste.com / 123456
+        {hasRealApi ? 'Acesso de demonstração — administrador: admin@pluvia.com / Admin@123' : 'Acesso de demonstração — gestor: gestor@teste.com / 123456'}
       </p>
     </div>
   )

@@ -7,13 +7,13 @@ import SchematicMap from '../components/SchematicMap.jsx'
 const EMPTY_SENSOR = { name: '', type: 'Enchente', sensor: '', unit: 'm', value: 0, threshold: 1, active: true, x: 0.5, y: 0.5 }
 
 export default function AdminSensorsPage() {
-  const { areas, addSensor, updateSensor, removeSensor, shelters, publicPoints, mapImage, updateMapImage } = useSensors()
+  const { areas, sensors, addSensor, updateSensor, removeSensor, shelters, publicPoints, mapImage, updateMapImage, apiMode } = useSensors()
   const [draft, setDraft] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [pickLocation, setPickLocation] = useState(false)
   const [notice, setNotice] = useState('')
-  const active = areas.filter((sensor) => sensor.active !== false)
-  const inactive = areas.filter((sensor) => sensor.active === false)
+  const active = sensors.filter((sensor) => sensor.active !== false)
+  const inactive = sensors.filter((sensor) => sensor.active === false)
 
   function startNew() {
     setDraft({ ...EMPTY_SENSOR }); setEditingId(null); setPickLocation(true); setNotice('')
@@ -44,28 +44,29 @@ export default function AdminSensorsPage() {
   function renderSensor(sensor) {
     return <article className={`admin-sensor-row ${sensor.active === false ? 'is-inactive' : ''}`} key={sensor.id}>
       <div className="admin-sensor-main"><div className="admin-sensor-name"><span className={`admin-sensor-state-dot ${sensor.active === false ? 'is-inactive' : ''}`} /><h3>{sensor.name}</h3></div>
-        <div className="admin-sensor-meta"><span>{sensor.type}</span><StatusBadge status={sensor.active === false ? 'normal' : statusFromArea(sensor)} />{sensor.active === false && <span className="admin-inactive-label">Inativo</span>}</div>
-        <p>{sensor.sensor}: <b>{sensor.value}{sensor.unit}</b> · Limite {sensor.threshold}{sensor.unit}</p>
+        <div className="admin-sensor-meta"><span>{sensor.areaName || sensor.type}</span><StatusBadge status={sensor.active === false ? 'normal' : statusFromArea(sensor)} />{sensor.active === false && <span className="admin-inactive-label">Área inativa</span>}</div>
+        <p>{sensor.sensor}: <b>{sensor.value == null ? 'Sem leitura disponível' : `${sensor.value}${sensor.unit}`}</b> · Limite {sensor.threshold}{sensor.unit}</p>
+        {apiMode && <small>{sensor.lastReadingAt ? `Última leitura: ${new Date(sensor.lastReadingAt).toLocaleString('pt-BR')}` : 'Nenhuma leitura recebida ainda.'}</small>}
       </div>
-      <div className="admin-sensor-actions"><button className="btn secondary" onClick={() => edit(sensor)}>Editar</button><button className="btn danger" onClick={() => remove(sensor)}>Excluir</button></div>
+      {!apiMode && <div className="admin-sensor-actions"><button className="btn secondary" onClick={() => edit(sensor)}>Editar</button><button className="btn danger" onClick={() => remove(sensor)}>Excluir</button></div>}
     </article>
   }
 
   return <main className="page manager-page admin-sensors-page">
-    <div className="manager-title admin-sensors-title"><div><span className="eyebrow">ÁREA RESTRITA</span><h1>Gestão de sensores</h1><p className="muted">Cadastre sensores, configure limites e gerencie os que estão ativos ou inativos.</p></div><button className="btn" onClick={startNew}>＋ Cadastrar sensor</button></div>
+    <div className="manager-title admin-sensors-title"><div><span className="eyebrow">ÁREA RESTRITA</span><h1>Gestão de sensores</h1><p className="muted">{apiMode ? 'Consulte as áreas e os sensores carregados do Pluvia. A API ainda não oferece cadastro ou edição de sensores.' : 'Cadastre sensores, configure limites e gerencie os que estão ativos ou inativos.'}</p></div>{!apiMode && <button className="btn" onClick={startNew}>＋ Cadastrar sensor</button>}</div>
     <div className="admin-sensors-layout">
       <section className="admin-sensor-list-panel">
         <div className="admin-sensor-section-heading"><h2>Sensores ativos</h2><span className="count-pill">{active.length}</span></div>
         {active.length ? active.map(renderSensor) : <p className="muted">Nenhum sensor ativo.</p>}
-        <div className="admin-sensor-section-heading inactive-heading"><h2>Sensores inativos</h2><span className="count-pill neutral">{inactive.length}</span></div>
+        <div className="admin-sensor-section-heading inactive-heading"><h2>Sensores em áreas inativas</h2><span className="count-pill neutral">{inactive.length}</span></div>
         {inactive.length ? inactive.map(renderSensor) : <p className="muted">Nenhum sensor inativo.</p>}
       </section>
       <section className={`manager-map-panel admin-sensor-map-panel ${pickLocation ? 'is-picking' : ''}`}>
         <div className="manager-map-toolbar"><div><span className="eyebrow">LOCALIZAÇÃO DOS SENSORES</span><h2>Mapa de referência</h2></div></div>
         {pickLocation && <div className="manager-pick-banner" role="status"><span aria-hidden="true">⌖</span> Clique no mapa para marcar a localização do sensor.<button onClick={() => setPickLocation(false)}>Cancelar</button></div>}
         {notice && <div className="manager-map-notice" role="status">{notice}</div>}
-        <div className="manager-map"><SchematicMap areas={areas} shelters={shelters} points={publicPoints} image={mapImage} onImageChange={updateMapImage} onSelectSensor={(id) => { const sensor = areas.find((area) => String(area.id) === String(id)); if (sensor) edit(sensor) }} onPickLocation={pickLocation ? handleMapPick : undefined} pickingLabel="Clique no mapa para marcar a localização do sensor" /></div>
-        <p className="map-caption">Clique em um sensor no mapa para editar · arraste e aproxime para navegar</p>
+        <div className="manager-map"><SchematicMap areas={areas} sensors={sensors} shelters={shelters} points={publicPoints} image={mapImage} onImageChange={apiMode ? undefined : updateMapImage} onSelectSensor={apiMode ? undefined : (id) => { const sensor = sensors.find((item) => String(item.areaId ?? item.id) === String(id)); if (sensor) edit(sensor) }} onPickLocation={pickLocation ? handleMapPick : undefined} pickingLabel="Clique no mapa para marcar a localização do sensor" /></div>
+        <p className="map-caption">{apiMode ? 'Áreas e sensores recebidos do Pluvia.' : 'Clique em um sensor no mapa para editar · arraste e aproxime para navegar'}</p>
       </section>
     </div>
     {draft && !pickLocation && <div className="manager-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setDraft(null) }}>
