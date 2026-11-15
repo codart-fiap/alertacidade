@@ -42,6 +42,16 @@ export function SensorProvider({ children }) {
   const [managerNotifications, setManagerNotifications] = useState(() => readStoredArray(MANAGER_NOTIFICATIONS_KEY))
   const managerNotificationsRef = useRef(managerNotifications)
   const [mapImage, setMapImage] = useState(() => localStorage.getItem('alertacidade-map-image') || '')
+  async function refreshDashboardData() {
+    if (!hasRealApi) return
+    const data = await getDashboardData()
+    setApiAreas(data.areas)
+    setApiSensors(data.sensors)
+    setApiAlerts(data.alerts)
+    setApiShelters(data.shelters)
+    setApiError('')
+    setLoading(false)
+  }
   useEffect(() => {
     if (!hasRealApi) return undefined
     let disposed = false
@@ -50,13 +60,8 @@ export function SensorProvider({ children }) {
       if (disposed || refreshing || document.hidden) return
       refreshing = true
       try {
-        const data = await getDashboardData()
+        await refreshDashboardData()
         if (disposed) return
-        setApiAreas(data.areas)
-        setApiSensors(data.sensors)
-        setApiAlerts(data.alerts)
-        setApiShelters(data.shelters)
-        setApiError('')
       } catch (error) {
         if (!disposed) setApiError(error.message)
       } finally {
@@ -167,13 +172,9 @@ export function SensorProvider({ children }) {
     const area = apiAreas.find((item) => String(item.id) === String(areaId))
     if (!area) throw new Error('Área de risco não encontrada.')
     await setRiskAreaActive(area, false)
-    const data = await getDashboardData()
-    setApiAreas(data.areas)
-    setApiSensors(data.sensors)
-    setApiAlerts(data.alerts)
-    setApiShelters(data.shelters)
+    await refreshDashboardData()
   }
-  return <SensorContext.Provider value={{ ...simulation, areas, sensors, alerts, shelters, loading, apiError, apiMode: hasRealApi, deactivateRiskArea, addShelter, updateShelter, removeShelter, publicPoints, addPublicPoint, updatePublicPoint, removePublicPoint, citizenReports, submitCitizenReport, confirmCitizenReport, managerNotifications, addManagerNotification, updateManagerNotification, removeManagerNotification, mapImage, updateMapImage }}>
+  return <SensorContext.Provider value={{ ...simulation, areas, sensors, alerts, shelters, loading, apiError, apiMode: hasRealApi, refreshDashboardData, deactivateRiskArea, addShelter, updateShelter, removeShelter, publicPoints, addPublicPoint, updatePublicPoint, removePublicPoint, citizenReports, submitCitizenReport, confirmCitizenReport, managerNotifications, addManagerNotification, updateManagerNotification, removeManagerNotification, mapImage, updateMapImage }}>
     {children}
   </SensorContext.Provider>
 }

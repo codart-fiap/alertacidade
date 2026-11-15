@@ -199,16 +199,29 @@ export async function postLeitura(sensorId, value) {
 }
 
 export async function setRiskAreaActive(area, active) {
-  return request(`/areas-risco/${area.id}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      nome: area.name,
-      latitude: Number(area.latitude),
-      longitude: Number(area.longitude),
-      raioMetros: Number(area.radiusMeters),
-      nivelRisco: area.riskLevel || 'BAIXO',
-      ativa: Boolean(active),
-    }),
-  })
+  return updateRiskArea(area.id, { ...area, active })
+}
+
+function riskAreaPayload(area) {
+  return {
+    nome: area.name.trim(),
+    latitude: Number(area.latitude),
+    longitude: Number(area.longitude),
+    raioMetros: Number(area.radiusMeters),
+    nivelRisco: area.riskLevel,
+    ativa: Boolean(area.active),
+  }
+}
+
+export async function createRiskArea(area) {
+  return request('/areas-risco', { method: 'POST', body: JSON.stringify(riskAreaPayload(area)) })
+}
+
+export async function updateRiskArea(id, area) {
+  return request(`/areas-risco/${id}`, { method: 'PUT', body: JSON.stringify(riskAreaPayload(area)) })
+}
+
+export async function deleteRiskArea(id) {
+  return request(`/areas-risco/${id}`, { method: 'DELETE' })
 }
 

@@ -240,6 +240,10 @@ button.recommendation-link { padding: 0; border: 0; background: none; text-decor
 .admin-sensors-title { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .admin-sensors-layout { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(0, 1.1fr); gap: 16px; align-items: start; margin-top: 14px; }
 .admin-sensor-list-panel { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.admin-risk-areas-panel { margin-top: 14px; }
+.admin-risk-area-form { padding: 16px; margin: 12px 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.admin-risk-area-form h3 { margin: 0; font-size: 15px; }
+.admin-risk-area-form .manager-modal-actions { margin-top: 4px; }
 .admin-sensor-section-heading { display: flex; align-items: center; gap: 9px; margin: 1px 0 10px; }
 .admin-sensor-section-heading h2 { margin: 0; font-size: 16px; }
 .admin-sensor-section-heading.inactive-heading { margin-top: 25px; padding-top: 17px; border-top: 1px solid var(--border); }
