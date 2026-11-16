@@ -186,6 +186,13 @@ export async function getAllShelters() {
   return (await getDashboardData()).shelters
 }
 
+export async function createSafePoint(point) {
+  return request('/pontos-seguros', {
+    method: 'POST',
+    body: JSON.stringify({ nome: point.name.trim(), latitude: Number(point.latitude), longitude: Number(point.longitude) }),
+  })
+}
+
 export async function getRecommendation(latitude, longitude) {
   return request(`/recomendacao?lat=${encodeURIComponent(latitude)}&lng=${encodeURIComponent(longitude)}`)
 }

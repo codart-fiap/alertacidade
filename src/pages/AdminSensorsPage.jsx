@@ -3,7 +3,7 @@ import { useSensors } from '../context/SensorContext.jsx'
 import { statusFromArea } from '../utils/risk.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import SchematicMap from '../components/SchematicMap.jsx'
-import { createRiskArea, deleteRiskArea, updateRiskArea } from '../services/apiClient.js'
+import { createRiskArea, deleteRiskArea, postLeitura, updateRiskArea } from '../services/apiClient.js'
 
 const EMPTY_SENSOR = { name: '', type: 'Enchente', sensor: '', unit: 'm', value: 0, threshold: 1, active: true, x: 0.5, y: 0.5 }
 const EMPTY_AREA = { name: '', latitude: '', longitude: '', radiusMeters: 500, riskLevel: 'MEDIO', active: true }
@@ -18,6 +18,9 @@ export default function AdminSensorsPage() {
   const [areaEditingId, setAreaEditingId] = useState(null)
   const [pickAreaLocation, setPickAreaLocation] = useState(false)
   const [areaBusy, setAreaBusy] = useState(false)
+  const [readingSensor, setReadingSensor] = useState(null)
+  const [readingValue, setReadingValue] = useState('')
+  const [readingBusy, setReadingBusy] = useState(false)
   const active = sensors.filter((sensor) => sensor.active !== false)
   const inactive = sensors.filter((sensor) => sensor.active === false)
 
@@ -46,6 +49,20 @@ export default function AdminSensorsPage() {
     removeSensor(sensor.id)
     if (String(editingId) === String(sensor.id)) { setDraft(null); setEditingId(null) }
     setNotice(`Sensor “${sensor.name}” removido.`)
+  }
+  async function registerReading(event) {
+    event.preventDefault()
+    if (!readingSensor) return
+    const value = Number(readingValue.replace(',', '.'))
+    if (!Number.isFinite(value) || value < 0) { setNotice('Informe um valor numérico maior ou igual a zero.'); return }
+    setReadingBusy(true)
+    try {
+      await postLeitura(readingSensor.id, value)
+      await refreshDashboardData()
+      setNotice(`Leitura ${value}${readingSensor.unit} registrada para ${readingSensor.name}.`)
+      setReadingSensor(null); setReadingValue('')
+    } catch (error) { setNotice(error.message) }
+    finally { setReadingBusy(false) }
   }
   function editArea(area) {
     setAreaDraft({ name: area.name, latitude: area.latitude, longitude: area.longitude, radiusMeters: area.radiusMeters, riskLevel: area.riskLevel || 'BAIXO', active: area.active !== false })
@@ -92,7 +109,7 @@ export default function AdminSensorsPage() {
         <p>{sensor.sensor}: <b>{sensor.value == null ? 'Sem leitura disponível' : `${sensor.value}${sensor.unit}`}</b> · Limite {sensor.threshold}{sensor.unit}</p>
         {apiMode && <small>{sensor.lastReadingAt ? `Última leitura: ${new Date(sensor.lastReadingAt).toLocaleString('pt-BR')}` : 'Nenhuma leitura recebida ainda.'}</small>}
       </div>
-      {!apiMode && <div className="admin-sensor-actions"><button className="btn secondary" onClick={() => edit(sensor)}>Editar</button><button className="btn danger" onClick={() => remove(sensor)}>Excluir</button></div>}
+      {apiMode ? <div className="admin-sensor-actions"><button className="btn secondary" onClick={() => { setReadingSensor(sensor); setReadingValue('') }}>Registrar leitura</button></div> : <div className="admin-sensor-actions"><button className="btn secondary" onClick={() => edit(sensor)}>Editar</button><button className="btn danger" onClick={() => remove(sensor)}>Excluir</button></div>}
     </article>
   }
 
@@ -145,6 +162,17 @@ export default function AdminSensorsPage() {
           <p className="manager-location-confirm">✓ Localização {editingId != null ? 'atual' : 'selecionada'} no mapa</p>
           <button type="button" className="btn secondary" onClick={() => { setPickLocation(true); setNotice('') }}>Selecionar localização no mapa</button>
           <div className="manager-modal-actions"><button type="button" className="btn secondary" onClick={() => setDraft(null)}>Cancelar</button><button className="btn">{editingId != null ? 'Salvar alterações' : 'Adicionar sensor'}</button></div>
+        </form>
+      </section>
+    </div>}
+    {readingSensor && <div className="manager-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !readingBusy) setReadingSensor(null) }}>
+      <section className="manager-modal" role="dialog" aria-modal="true" aria-labelledby="reading-form-title">
+        <button className="manager-modal-close" aria-label="Fechar formulário" disabled={readingBusy} onClick={() => setReadingSensor(null)}>×</button>
+        <span className="eyebrow">LEITURA DO SENSOR</span><h2 id="reading-form-title">{readingSensor.name}</h2>
+        <p className="muted">Limite configurado: {readingSensor.threshold}{readingSensor.unit}. Uma leitura acima do limite pode gerar um alerta.</p>
+        <form className="manager-form" onSubmit={registerReading}>
+          <label>Valor ({readingSensor.unit})<input className="input" type="number" min="0" step="any" required autoFocus value={readingValue} onChange={(e) => setReadingValue(e.target.value)} placeholder="Ex.: 325" /></label>
+          <div className="manager-modal-actions"><button type="button" className="btn secondary" disabled={readingBusy} onClick={() => setReadingSensor(null)}>Cancelar</button><button className="btn" disabled={readingBusy}>{readingBusy ? 'Enviando…' : 'Enviar leitura'}</button></div>
         </form>
       </section>
     </div>}

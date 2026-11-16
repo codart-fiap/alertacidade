@@ -3,9 +3,10 @@ import { useSensors } from '../context/SensorContext.jsx'
 import { statusFromArea, statusLabel } from '../utils/risk.js'
 import StatusBadge from '../components/StatusBadge.jsx'
 import SchematicMap from '../components/SchematicMap.jsx'
+import { createSafePoint } from '../services/apiClient.js'
 
 export default function AdminAlertsPage() {
-  const { areas, sensors, alerts, resolveAlertLocally, deactivateRiskArea, apiMode, apiError, loading, updateAlert, updateAreaInstruction, removeAlert, shelters, addShelter, updateShelter, removeShelter, addPublicPoint, updatePublicPoint, removePublicPoint, publicPoints, mapImage, updateMapImage } = useSensors()
+  const { areas, sensors, alerts, resolveAlertLocally, deactivateRiskArea, apiMode, apiError, loading, updateAlert, updateAreaInstruction, removeAlert, shelters, addShelter, updateShelter, removeShelter, addPublicPoint, updatePublicPoint, removePublicPoint, publicPoints, mapImage, updateMapImage, refreshDashboardData } = useSensors()
   const [pickFor, setPickFor] = useState('')
   const [formFor, setFormFor] = useState('')
   const [location, setLocation] = useState(null)
@@ -96,13 +97,20 @@ export default function AdminAlertsPage() {
     removeAlert(alertDraft.id)
     setAlertDraft(null)
   }
-  function submitShelter(e) {
+  async function submitShelter(e) {
     e.preventDefault()
     if (!shelterName.trim() || !location) return
     const values = { name: shelterName.trim(), address: shelterAddress.trim() || 'Endereço não informado', capacity: 0, ...location }
-    if (editing?.type === 'shelter') updateShelter(editing.id, values)
-    else addShelter(values)
-    setShelterName(''); setShelterAddress(''); setEditing(null); closeForm()
+    try {
+      if (apiMode) {
+        if (editing?.type === 'shelter') throw new Error('A API não oferece edição de pontos seguros.')
+        await createSafePoint({ name: values.name, latitude: -23.47 - location.y * 0.12, longitude: -46.72 + location.x * 0.16 })
+        await refreshDashboardData()
+      } else if (editing?.type === 'shelter') updateShelter(editing.id, values)
+      else addShelter(values)
+      setShelterName(''); setShelterAddress(''); setEditing(null); closeForm()
+      setNotice('Ponto seguro cadastrado com sucesso.')
+    } catch (error) { setNotice(error.message) }
   }
   function submitPoint(e) {
     e.preventDefault()
@@ -130,14 +138,14 @@ export default function AdminAlertsPage() {
       <section className={`manager-map-panel ${pickFor ? 'is-picking' : ''}`} aria-label="Mapa e cadastro de locais">
         <div className="manager-map-toolbar">
           <div><span className="eyebrow">MAPA DA REGIÃO</span><h2>Mapa de referência</h2></div>
-          {!apiMode && <div className="manager-map-actions">
+          <div className="manager-map-actions">
             <button className="btn manager-add-button" onClick={() => beginPick('shelter')}><span aria-hidden="true">＋</span> Cadastrar abrigo</button>
-            <button className="btn manager-add-button" onClick={() => beginPick('point')}><span aria-hidden="true">＋</span> Cadastrar ponto de atenção</button>
-          </div>}
+            {!apiMode && <button className="btn manager-add-button" onClick={() => beginPick('point')}><span aria-hidden="true">＋</span> Cadastrar ponto de atenção</button>}
+          </div>
         </div>
         {pickFor && <div className="manager-pick-banner" role="status"><span aria-hidden="true">⌖</span> Clique no mapa para escolher a localização {pickFor === 'shelter' ? 'do abrigo' : 'do ponto de atenção'}. <button onClick={() => { setPickFor(''); setNotice('') }}>Cancelar</button></div>}
         {notice && <div className="manager-map-notice" role="status">{notice}</div>}
-        <div className="manager-map"><SchematicMap areas={areas} sensors={sensors} shelters={shelters} points={publicPoints} image={mapImage} focusAreaId={focusedSensorId} onImageChange={updateMapImage} onSelectSensor={openSensorHistory} onSelectArea={(id) => { if (publicPoints.some((point) => String(point.id) === String(id))) editPoint(id) }} onSelectShelter={editShelter} onPickLocation={pickFor ? handleMapPick : undefined} pickingLabel={pickFor === 'shelter' ? 'Clique no mapa para marcar o abrigo' : 'Clique no mapa para marcar o ponto de atenção'} /></div>
+        <div className="manager-map"><SchematicMap areas={areas} sensors={sensors} shelters={shelters} points={publicPoints} image={mapImage} focusAreaId={focusedSensorId} onImageChange={updateMapImage} onSelectSensor={openSensorHistory} onSelectArea={(id) => { if (publicPoints.some((point) => String(point.id) === String(id))) editPoint(id) }} onSelectShelter={apiMode ? undefined : editShelter} onPickLocation={pickFor ? handleMapPick : undefined} pickingLabel={pickFor === 'shelter' ? 'Clique no mapa para marcar o abrigo' : 'Clique no mapa para marcar o ponto de atenção'} /></div>
         <p className="map-caption">Arraste para mover · use os botões ou a roda do mouse para aproximar</p>
       </section>
     </div>

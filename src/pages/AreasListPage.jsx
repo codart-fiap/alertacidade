@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useSensors } from '../context/SensorContext.jsx'
 import SchematicMap from '../components/SchematicMap.jsx'
@@ -8,6 +8,7 @@ import { getRecommendation, hasRealApi } from '../services/apiClient.js'
 
 const DEFAULT_MAP_DIMENSIONS = { width: 1000, height: 600 }
 const EMPTY_REPORT = { name: '', type: 'Enchente', instruction: '' }
+const SEEN_API_ALERTS_KEY = 'alertacidade-seen-api-alerts'
 
 function getCitizenSessionId() {
   let id = sessionStorage.getItem('alertacidade-citizen-session')
@@ -28,11 +29,13 @@ function defaultSafetyInstruction(area) {
 }
 
 export default function AreasListPage({ expanded = false }) {
-  const { areas, sensors, alerts, shelters, publicPoints, mapImage, managerNotifications, citizenReports, submitCitizenReport, confirmCitizenReport } = useSensors()
+  const { areas, sensors, alerts, shelters, publicPoints, mapImage, managerNotifications, citizenReports, submitCitizenReport, confirmCitizenReport, loading } = useSensors()
   const [searchParams] = useSearchParams()
   const [focusAreaId, setFocusAreaId] = useState(searchParams.get('area'))
   const [location, setLocation] = useState(null)
   const [cardIndex, setCardIndex] = useState(0)
+  const [newApiAlertIds, setNewApiAlertIds] = useState([])
+  const initializedApiAlertsRef = useRef(false)
   const [touchStart, setTouchStart] = useState(null)
   const [mapDimensions, setMapDimensions] = useState(DEFAULT_MAP_DIMENSIONS)
   const [riskNotification, setRiskNotification] = useState(null)
@@ -67,7 +70,27 @@ export default function AreasListPage({ expanded = false }) {
     return () => { cancelled = true }
   }, [mapImage])
   const allAreas = [...publicPoints, ...areas]
-  const activeAlerts = alerts.filter((alert) => !alert.resolved)
+  const activeAlerts = useMemo(() => alerts.filter((alert) => !alert.resolved), [alerts])
+  useEffect(() => {
+    if (!hasRealApi || loading) return
+    let seen = []
+    try { seen = JSON.parse(localStorage.getItem(SEEN_API_ALERTS_KEY) || '[]') } catch { seen = [] }
+    const ids = activeAlerts.map((alert) => String(alert.id))
+    if (!initializedApiAlertsRef.current) {
+      initializedApiAlertsRef.current = true
+      // Na primeira carga, os alertas já existentes não são considerados novos.
+      if (!localStorage.getItem(SEEN_API_ALERTS_KEY)) {
+        seen = ids
+        localStorage.setItem(SEEN_API_ALERTS_KEY, JSON.stringify(seen))
+      }
+    }
+    const fresh = ids.filter((id) => !seen.includes(id))
+    setNewApiAlertIds(expanded ? [] : fresh)
+    if (expanded && fresh.length) {
+      const updated = [...new Set([...seen, ...fresh])]
+      localStorage.setItem(SEEN_API_ALERTS_KEY, JSON.stringify(updated))
+    }
+  }, [activeAlerts, expanded, loading])
   const nearbyCitizenReports = citizenReports.filter((report) => report.status === 'pending' && (report.reporterId === citizenSessionId || isLocationNearPoint(location, report, mapDimensions)))
   useEffect(() => {
     if (expanded || !location) return
@@ -143,6 +166,16 @@ export default function AreasListPage({ expanded = false }) {
   function requestSafetyRecommendation() {
     setRecommendationError('')
     setRecommendation(null)
+    if (location) {
+      const latitude = -23.47 - location.y * 0.12
+      const longitude = -46.72 + location.x * 0.16
+      setRecommendationLoading(true)
+      getRecommendation(latitude, longitude)
+        .then(setRecommendation)
+        .catch((error) => setRecommendationError(error.message))
+        .finally(() => setRecommendationLoading(false))
+      return
+    }
     if (!navigator.geolocation) {
       setRecommendationError('Este navegador não oferece acesso à localização.')
       return
@@ -200,6 +233,7 @@ export default function AreasListPage({ expanded = false }) {
         onTouchStart={(event) => setTouchStart(event.touches[0].clientX)}
         onTouchEnd={(event) => { if (touchStart === null) return; const delta = event.changedTouches[0].clientX - touchStart; if (Math.abs(delta) > 35) setCardIndex((index) => Math.max(0, Math.min(cards.length - 1, index + (delta < 0 ? 1 : -1)))); setTouchStart(null) }}>
         {cards.length ? <article className="recommendation-card" key={cards[cardIndex]?.id}>
+          {hasRealApi && messages.some((message) => String(message.id) === String(cards[cardIndex]?.id)) && <span className="notice-label">{newApiAlertIds.includes(String(cards[cardIndex]?.id)) ? 'NOVO' : 'VISTO'}</span>}
           <span className="recommendation-icon">{cards[cardIndex]?.area?.type?.toLowerCase().includes('enchente') ? '🌊' : cards[cardIndex]?.area?.type?.toLowerCase().includes('deslizamento') ? '⛰️' : '⚠️'}</span>
           <div className="recommendation-copy"><strong>{cards[cardIndex]?.area?.name || 'Alerta próximo'} · {cards[cardIndex]?.area?.type}</strong><small>{cards[cardIndex]?.text}</small></div>
           <button className="recommendation-link" onClick={() => { setFocusAreaId(cards[cardIndex]?.area?.id); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>Ver</button>
@@ -207,7 +241,7 @@ export default function AreasListPage({ expanded = false }) {
         </article> : <article className="recommendation-card calm"><span className="recommendation-icon">✓</span><div className="recommendation-copy"><strong>Nenhum alerta ativo</strong><small>Marque sua localização para ver os pontos de atenção próximos no mapa.</small></div></article>}
       </section>}
       {expanded && <section className="citizen-notices"><h1>Todos os alertas</h1><p className="muted">Ordenados por gravidade e proximidade da localização marcada.</p>
-        {messages.length ? messages.map(({ id, area, text }) => <article className="notice-card" key={id}><span className="notice-label">ATENÇÃO</span><h2>{area?.type} · {area?.name}</h2><p>{text}</p><Link to={`/?area=${area?.id}`}>Ver no mapa →</Link></article>) : <article className="notice-card calm"><h2>Nenhum alerta ativo</h2><p>Não há ocorrências que exijam ação neste momento. Acompanhe o mapa para ver pontos de atenção e abrigos.</p></article>}
+        {messages.length ? messages.map(({ id, area, text }) => <article className="notice-card" key={id}><span className="notice-label">{hasRealApi ? (newApiAlertIds.includes(String(id)) ? 'NOVO · ATENÇÃO' : 'VISTO · ATENÇÃO') : 'ATENÇÃO'}</span><h2>{area?.type} · {area?.name}</h2><p>{text}</p><Link to={`/?area=${area?.id}`}>Ver no mapa →</Link></article>) : <article className="notice-card calm"><h2>Nenhum alerta ativo</h2><p>Não há ocorrências que exijam ação neste momento. Acompanhe o mapa para ver pontos de atenção e abrigos.</p></article>}
         {urgentAreas.filter((area) => !messages.some((message) => message.area?.id === area.id)).map((area) => <article className="notice-card" key={area.id}><span className="notice-label">ATENÇÃO</span><h2>{area.type} · {area.name}</h2><p>Evite a região e procure um local seguro. Acompanhe novas orientações da Defesa Civil.</p><Link to={`/?area=${area.id}`}>Ver no mapa →</Link></article>)}
       </section>}
       {!expanded && <section ref={mapSectionRef} className="citizen-map-section"><div className="section-heading citizen-map-heading"><div><h1>Mapa</h1><p className="muted">Localização, pontos de atenção e abrigos</p></div>{!hasRealApi && <button className="btn citizen-report-button" onClick={startCitizenReport}>＋ Reportar ponto de atenção</button>}</div>
