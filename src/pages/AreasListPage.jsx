@@ -28,6 +28,18 @@ function defaultSafetyInstruction(area) {
   return 'Afaste-se da área de risco, procure um local seguro e siga as orientações da Defesa Civil.'
 }
 
+function recommendationCopy(result) {
+  if (result?.situacao !== 'FORA_DA_AREA_DE_RISCO') {
+    return { title: result?.situacao?.replaceAll('_', ' ') || 'RECOMENDAÇÃO', message: result?.mensagem || '' }
+  }
+  const distance = Number(result.distanciaAteBordaMetros ?? 0).toLocaleString('pt-BR')
+  const area = result.areaRisco || 'área de risco ativa'
+  return {
+    title: 'ENTRANDO EM UMA ÁREA DE RISCO',
+    message: `Você está entrando dentro do raio de alcance de uma área de risco ativa. A cerca de ${distance} m da ${area}. Recomendamos que não permaneça no local se possível.`,
+  }
+}
+
 export default function AreasListPage({ expanded = false }) {
   const { areas, sensors, alerts, shelters, publicPoints, mapImage, managerNotifications, citizenReports, submitCitizenReport, confirmCitizenReport, loading } = useSensors()
   const [searchParams] = useSearchParams()
@@ -49,6 +61,7 @@ export default function AreasListPage({ expanded = false }) {
   const [recommendationLoading, setRecommendationLoading] = useState(false)
   const [citizenSessionId] = useState(getCitizenSessionId)
   const notifiedSensorsRef = useRef(new Set())
+  const recommendationLocationRef = useRef('')
   const seenPublishedNotificationsRef = useRef(new Set())
   const mapSectionRef = useRef(null)
   useEffect(() => {
@@ -71,6 +84,7 @@ export default function AreasListPage({ expanded = false }) {
   }, [mapImage])
   const allAreas = [...publicPoints, ...areas]
   const activeAlerts = useMemo(() => alerts.filter((alert) => !alert.resolved), [alerts])
+  const insideVisualRiskArea = Boolean(location && areas.some((area) => area.active !== false && isLocationInsideMonitoringArea(location, area, mapDimensions)))
   useEffect(() => {
     if (!hasRealApi || loading) return
     let seen = []
@@ -93,6 +107,27 @@ export default function AreasListPage({ expanded = false }) {
   }, [activeAlerts, expanded, loading])
   const nearbyCitizenReports = citizenReports.filter((report) => report.status === 'pending' && (report.reporterId === citizenSessionId || isLocationNearPoint(location, report, mapDimensions)))
   useEffect(() => {
+    if (!hasRealApi || !location || expanded) return
+    if (!insideVisualRiskArea) {
+      setRecommendation(null)
+      setRecommendationError('Marque uma posição dentro do círculo de risco para ver a recomendação.')
+      setRiskNotification(null)
+      return
+    }
+    const key = `${location.x.toFixed(5)},${location.y.toFixed(5)}`
+    if (recommendationLocationRef.current === key) return
+    recommendationLocationRef.current = key
+    const latitude = -23.47 - location.y * 0.12
+    const longitude = -46.72 + location.x * 0.16
+    setRecommendationLoading(true)
+    getRecommendation(latitude, longitude).then((result) => {
+      setRecommendation(result)
+      setRecommendationError('')
+      const copy = recommendationCopy(result)
+      setRiskNotification({ id: key, name: result.areaRisco, type: copy.title, status: 'critico', instruction: copy.message })
+    }).catch((error) => setRecommendationError(error.message)).finally(() => setRecommendationLoading(false))
+  }, [location, expanded, insideVisualRiskArea])
+  useEffect(() => {
     if (expanded || !location) return
     const matches = areas.filter((area) => area.active !== false && statusFromArea(area) !== 'normal' && isLocationInsideMonitoringArea(location, area, mapDimensions))
     const insideIds = new Set(matches.map((area) => String(area.id)))
@@ -114,7 +149,15 @@ export default function AreasListPage({ expanded = false }) {
     })
   }, [expanded, location, areas, activeAlerts, mapDimensions])
   useEffect(() => {
+    // Notificações manuais são dados locais da demonstração, não vêm do Pluvia.
+    // Ao usar a API, evitamos exibir notificações de teste antigas persistidas no navegador.
+    if (hasRealApi) {
+      setPublishedNotification(null)
+      return
+    }
     const eligible = managerNotifications.filter((notification) => {
+      const testText = `${notification.title || ''} ${notification.message || ''}`
+      if (/\b(asdasd|assad)\b/i.test(testText)) return false
       if (!notification.active) return false
       if (notification.scope === 'global') return true
       const sensor = areas.find((area) => String(area.id) === String(notification.sensorId))
@@ -167,13 +210,14 @@ export default function AreasListPage({ expanded = false }) {
     setRecommendationError('')
     setRecommendation(null)
     if (location) {
+      if (!insideVisualRiskArea) {
+        setRecommendationError('Marque uma posição dentro do círculo de risco para ver a recomendação.')
+        return
+      }
       const latitude = -23.47 - location.y * 0.12
       const longitude = -46.72 + location.x * 0.16
       setRecommendationLoading(true)
-      getRecommendation(latitude, longitude)
-        .then(setRecommendation)
-        .catch((error) => setRecommendationError(error.message))
-        .finally(() => setRecommendationLoading(false))
+      getRecommendation(latitude, longitude).then(setRecommendation).catch((error) => setRecommendationError(error.message)).finally(() => setRecommendationLoading(false))
       return
     }
     if (!navigator.geolocation) {
@@ -214,8 +258,13 @@ export default function AreasListPage({ expanded = false }) {
 
   return (
     <main className={`citizen-page ${expanded ? 'citizen-expanded' : ''}`}>
-      {(publishedNotification || riskNotification) && <aside className={`risk-location-notification ${publishedNotification ? (publishedNotification.scope === 'global' ? 'global' : 'published') : riskNotification.status}`} role="alert" aria-live="assertive">
-        {publishedNotification ? <>
+      {(publishedNotification || riskNotification) && <aside className={`risk-location-notification ${riskNotification ? riskNotification.status : (publishedNotification.scope === 'global' ? 'global' : 'published')}`} role="alert" aria-live="assertive">
+        {riskNotification ? <>
+        <span className="risk-notification-icon" aria-hidden="true">⚠</span>
+        <div className="risk-notification-content"><strong>{riskNotification.type}</strong><span>{riskNotification.name}</span><p>{riskNotification.instruction}</p>
+          <button className="risk-notification-link" onClick={() => { setFocusAreaId(riskNotification.id); setRiskNotification(null); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>Ver no mapa</button>
+        </div><button className="risk-notification-close" aria-label="Fechar notificação" onClick={() => setRiskNotification(null)}>×</button>
+        </> : publishedNotification ? <>
           <span className="risk-notification-icon" aria-hidden="true">{publishedNotification.scope === 'global' ? '📢' : '⚠'}</span>
           <div className="risk-notification-content"><span className="published-notification-audience">{publishedNotification.scope === 'global' ? 'ALERTA GERAL' : `ALERTA NA SUA ÁREA · ${publishedNotification.sensorName}`}</span><strong>{publishedNotification.title}</strong><p>{publishedNotification.message}</p>
             <button className="risk-notification-link" onClick={() => { if (publishedNotification.scope === 'sensor') setFocusAreaId(publishedNotification.sensorId); dismissPublishedNotification(); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>Ver no mapa</button>
@@ -247,7 +296,7 @@ export default function AreasListPage({ expanded = false }) {
       {!expanded && <section ref={mapSectionRef} className="citizen-map-section"><div className="section-heading citizen-map-heading"><div><h1>Mapa</h1><p className="muted">Localização, pontos de atenção e abrigos</p></div>{!hasRealApi && <button className="btn citizen-report-button" onClick={startCitizenReport}>＋ Reportar ponto de atenção</button>}</div>
         {pickingReportLocation && <div className="manager-pick-banner citizen-report-pick-banner" role="status"><span aria-hidden="true">⌖</span> Toque no mapa para marcar onde está acontecendo.<button onClick={() => { setPickingReportLocation(false); setReportDraft(null) }}>Cancelar</button></div>}
         <SchematicMap areas={areas} sensors={sensors} shelters={shelters} points={publicPoints} pendingPoints={nearbyCitizenReports} image={mapImage} focusAreaId={focusAreaId} onLocationChange={setLocation} onPickLocation={pickingReportLocation ? selectReportLocation : undefined} pickingLabel="Toque no mapa para marcar o ponto de atenção" onSelectArea={(id) => { setFocusAreaId(id); mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
-        {hasRealApi && <section className="citizen-report-list" aria-label="Recomendação pela localização atual"><div className="admin-sensor-section-heading"><h2>Minha localização</h2><button className="btn secondary" onClick={requestSafetyRecommendation} disabled={recommendationLoading}>{recommendationLoading ? 'Consultando…' : 'Ver recomendação de segurança'}</button></div><p className="muted">A API compara sua posição com as áreas ativas e indica o ponto seguro mais próximo.</p>{recommendationError && <p className="error-text" role="alert">{recommendationError}</p>}{recommendation && <article className="notice-card"><span className="notice-label">{recommendation.situacao?.replaceAll('_', ' ')}</span><h2>{recommendation.areaRisco || 'Situação da região'}</h2><p>{recommendation.mensagem}</p>{recommendation.pontoSeguro && <p><b>Ponto seguro:</b> {recommendation.pontoSeguro.nome} · {recommendation.pontoSeguro.distanciaMetros} m</p>}</article>}</section>}
+        {hasRealApi && <section className="citizen-report-list" aria-label="Recomendação pela localização atual"><div className="admin-sensor-section-heading"><h2>Minha localização</h2><button className="btn secondary" onClick={requestSafetyRecommendation} disabled={recommendationLoading}>{recommendationLoading ? 'Consultando…' : 'Ver recomendação de segurança'}</button></div><p className="muted">A API compara sua posição com as áreas ativas e indica o ponto seguro mais próximo.</p>{recommendationError && <p className="error-text" role="alert">{recommendationError}</p>}{recommendation && insideVisualRiskArea && <article className="notice-card"><span className="notice-label">{recommendation.situacao?.replaceAll('_', ' ')}</span><h2>{recommendation.areaRisco || 'Situação da região'}</h2><p>{recommendation.mensagem}</p>{recommendation.distanciaAteBordaMetros != null && <p><b>Distância até a borda:</b> {recommendation.distanciaAteBordaMetros} m</p>}{recommendation.pontoSeguro && <p><b>Ponto seguro:</b> {recommendation.pontoSeguro.nome} · {recommendation.pontoSeguro.distanciaMetros} m</p>}</article>}</section>}
         {reportFeedback && <p className="citizen-report-feedback" role="status">{reportFeedback}</p>}
         <section className="citizen-report-list" aria-label="Relatos de pontos de atenção próximos"><div className="admin-sensor-section-heading"><h2>Pontos aguardando confirmação</h2><span className="count-pill neutral">{nearbyCitizenReports.filter((report) => report.reporterId !== citizenSessionId).length}</span></div>
           {nearbyCitizenReports.length ? nearbyCitizenReports.map((report) => <article className="citizen-report-card" key={report.id}><div><span className="eyebrow">RELATO DA COMUNIDADE</span><h3>{report.name} · {report.type}</h3><p>{report.instruction}</p><small>{report.reporterId === citizenSessionId ? 'Seu relato · aguardando confirmação de outra pessoa' : 'Você está perto deste local? Confirme se o ponto continua lá.'}</small></div>{report.reporterId !== citizenSessionId && <button className="btn citizen-confirm-button" onClick={() => confirmReport(report)}>Continua lá</button>}</article>) : <p className="muted">Marque sua localização no mapa para ver relatos próximos que precisam de confirmação.</p>}
@@ -265,3 +314,5 @@ export default function AreasListPage({ expanded = false }) {
     </main>
   )
 }
+
+
