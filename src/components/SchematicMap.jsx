@@ -80,6 +80,8 @@ export default function SchematicMap({
   onPickLocation,
   pickingLabel,
   onLocationChange,
+  hideSensorMarkers = false,
+  citizenLegend = false,
 }) {
   const [userLocation, setUserLocation] = useState(null)
   const [picking, setPicking] = useState(false)
@@ -121,7 +123,7 @@ export default function SchematicMap({
       label: shelter.name,
       iconHtml: SHELTER_ICON,
     })),
-    ...(sensors.length
+    ...(hideSensorMarkers ? [] : sensors.length
       ? sensors.map((sensor) => {
           const group = sensors.filter((item) => String(item.areaId ?? item.id) === String(sensor.areaId ?? sensor.id))
           const groupIndex = group.findIndex((item) => String(item.id) === String(sensor.id))
@@ -234,9 +236,8 @@ export default function SchematicMap({
           </label>
         )}
         <div className="map-legend" aria-label="Legenda dos marcadores do mapa">
-          <span><i className="map-legend-icon sensor" dangerouslySetInnerHTML={{ __html: SENSOR_ICON }} />Sensor · risco</span>
+          {!citizenLegend && <span><i className="map-legend-icon sensor" dangerouslySetInnerHTML={{ __html: SENSOR_ICON }} />Sensor · risco</span>}
           <span><i className="map-legend-icon shelter" dangerouslySetInnerHTML={{ __html: SHELTER_ICON }} />Abrigo</span>
-          <span><i className="map-legend-icon attention" dangerouslySetInnerHTML={{ __html: ATTENTION_ICON }} />Ponto de atenção</span>
           {pendingPoints.length > 0 && <span><i className="map-legend-icon pending" dangerouslySetInnerHTML={{ __html: PENDING_REPORT_ICON }} />Aguardando confirmação</span>}
           <span><i className="map-legend-area" />Área monitorada</span>
           {!onImageChange && <span><i className="map-legend-icon user" dangerouslySetInnerHTML={{ __html: USER_LOCATION_ICON }} />Sua localização</span>}
