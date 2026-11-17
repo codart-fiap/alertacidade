@@ -9,6 +9,7 @@ import { getRecommendation, hasRealApi } from '../services/apiClient.js'
 const DEFAULT_MAP_DIMENSIONS = { width: 1000, height: 600 }
 const EMPTY_REPORT = { name: '', type: 'Enchente', instruction: '' }
 const SEEN_API_ALERTS_KEY = 'alertacidade-seen-api-alerts'
+const HIDDEN_API_ALERTS_KEY = 'alertacidade-hidden-api-alerts'
 
 function getCitizenSessionId() {
   let id = sessionStorage.getItem('alertacidade-citizen-session')
@@ -47,6 +48,9 @@ export default function AreasListPage({ expanded = false }) {
   const [location, setLocation] = useState(null)
   const [cardIndex, setCardIndex] = useState(0)
   const [newApiAlertIds, setNewApiAlertIds] = useState([])
+  const [hiddenApiAlertIds, setHiddenApiAlertIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(HIDDEN_API_ALERTS_KEY) || '[]').map(String) } catch { return [] }
+  })
   const initializedApiAlertsRef = useRef(false)
   const [touchStart, setTouchStart] = useState(null)
   const [mapDimensions, setMapDimensions] = useState(DEFAULT_MAP_DIMENSIONS)
@@ -83,7 +87,7 @@ export default function AreasListPage({ expanded = false }) {
     return () => { cancelled = true }
   }, [mapImage])
   const allAreas = [...publicPoints, ...areas]
-  const activeAlerts = useMemo(() => alerts.filter((alert) => !alert.resolved), [alerts])
+  const activeAlerts = useMemo(() => alerts.filter((alert) => !alert.resolved && !hiddenApiAlertIds.includes(String(alert.id))), [alerts, hiddenApiAlertIds])
   const insideVisualRiskArea = Boolean(location && areas.some((area) => area.active !== false && isLocationInsideMonitoringArea(location, area, mapDimensions)))
   useEffect(() => {
     if (!hasRealApi || loading) return
@@ -183,6 +187,12 @@ export default function AreasListPage({ expanded = false }) {
   function dismissPublishedNotification() {
     if (publishedNotification) seenPublishedNotificationsRef.current.add(publishedNotification.id)
     setPublishedNotification(null)
+  }
+  function clearVisibleApiAlerts() {
+    const hidden = [...new Set([...hiddenApiAlertIds, ...alerts.filter((alert) => !alert.resolved).map((alert) => String(alert.id))])]
+    setHiddenApiAlertIds(hidden)
+    localStorage.setItem(HIDDEN_API_ALERTS_KEY, JSON.stringify(hidden))
+    setNewApiAlertIds((current) => current.filter((id) => !hidden.includes(id)))
   }
   function startCitizenReport() {
     setReportDraft({ ...EMPTY_REPORT })
@@ -289,9 +299,9 @@ export default function AreasListPage({ expanded = false }) {
           {cards.length > 1 && <div className="recommendation-pagination"><span>{cardIndex + 1} de {cards.length}</span>{cards.map((card, index) => <button key={card.id} aria-label={`Ver recomendação ${index + 1}`} className={index === cardIndex ? 'active' : ''} onClick={() => setCardIndex(index)} />)}</div>}
         </article> : <article className="recommendation-card calm"><span className="recommendation-icon">✓</span><div className="recommendation-copy"><strong>Nenhum alerta ativo</strong><small>Marque sua localização para ver os pontos de atenção próximos no mapa.</small></div></article>}
       </section>}
-      {expanded && <section className="citizen-notices"><h1>Todos os alertas</h1><p className="muted">Ordenados por gravidade e proximidade da localização marcada.</p>
+      {expanded && <section className="citizen-notices"><div className="admin-sensor-section-heading"><h1>Todos os alertas</h1>{hasRealApi && alerts.some((alert) => !alert.resolved) && <button className="btn secondary" onClick={clearVisibleApiAlerts}>Limpar alertas da tela</button>}</div><p className="muted">Ordenados por gravidade e proximidade da localização marcada. Limpar oculta os alertas atuais neste navegador, sem apagá-los do Pluvia.</p>
         {messages.length ? messages.map(({ id, area, text }) => <article className="notice-card" key={id}><span className="notice-label">{hasRealApi ? (newApiAlertIds.includes(String(id)) ? 'NOVO · ATENÇÃO' : 'VISTO · ATENÇÃO') : 'ATENÇÃO'}</span><h2>{area?.type} · {area?.name}</h2><p>{text}</p><Link to={`/?area=${area?.id}`}>Ver no mapa →</Link></article>) : <article className="notice-card calm"><h2>Nenhum alerta ativo</h2><p>Não há ocorrências que exijam ação neste momento. Acompanhe o mapa para ver pontos de atenção e abrigos.</p></article>}
-        {urgentAreas.filter((area) => !messages.some((message) => message.area?.id === area.id)).map((area) => <article className="notice-card" key={area.id}><span className="notice-label">ATENÇÃO</span><h2>{area.type} · {area.name}</h2><p>Evite a região e procure um local seguro. Acompanhe novas orientações da Defesa Civil.</p><Link to={`/?area=${area.id}`}>Ver no mapa →</Link></article>)}
+        {!hasRealApi && urgentAreas.filter((area) => !messages.some((message) => String(message.area?.id) === String(area.id))).map((area) => <article className="notice-card" key={area.id}><span className="notice-label">ATENÇÃO</span><h2>{area.type} · {area.name}</h2><p>Evite a região e procure um local seguro. Acompanhe novas orientações da Defesa Civil.</p><Link to={`/?area=${area.id}`}>Ver no mapa →</Link></article>)}
       </section>}
       {!expanded && <section ref={mapSectionRef} className="citizen-map-section"><div className="section-heading citizen-map-heading"><div><h1>Mapa</h1><p className="muted">Localização, pontos de atenção e abrigos</p></div>{!hasRealApi && <button className="btn citizen-report-button" onClick={startCitizenReport}>＋ Reportar ponto de atenção</button>}</div>
         {pickingReportLocation && <div className="manager-pick-banner citizen-report-pick-banner" role="status"><span aria-hidden="true">⌖</span> Toque no mapa para marcar onde está acontecendo.<button onClick={() => { setPickingReportLocation(false); setReportDraft(null) }}>Cancelar</button></div>}
