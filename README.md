@@ -2,6 +2,17 @@
 
 Interface web do projeto Pluvia, desenvolvida com React e Vite. O Alerta Cidade apresenta áreas de risco, sensores, alertas e pontos seguros, e permite que o cidadão consulte uma recomendação a partir de uma localização. Quando conectado à API, as operações administrativas disponíveis no backend também podem ser usadas pelo painel do gestor.
 
+## Integrantes
+
+- RM558627 - VINICIUS HENRIQUE DA SILVA
+- RM556915 -  LUCAS MORAES DAVANÇO
+- RM555096 - HUGO CARVALHO DE SOUZA
+- RM557606 - João Gabriel Garcia Moreno
+
+## Vídeo pitch
+
+> https://www.youtube.com/watch?v=btL8T8UGqxg
+
 ## Escopo do front-end mobile
 
 O documento da Global Solution não especifica uma tecnologia obrigatória para a implementação do front-end mobile. Após esclarecer essa dúvida com o tutor da turma, **Lucas Silva Borges Sousa**, foi adotada a possibilidade de desenvolver essa parte como uma aplicação web, com foco em **mobile first**. Assim, o Alerta Cidade é uma aplicação web responsiva, projetada para priorizar o uso em dispositivos móveis.
